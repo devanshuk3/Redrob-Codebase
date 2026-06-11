@@ -48,7 +48,7 @@ candidate-ranking/
 ├── notebooks/                     # EDA, experimentation — not part of pipeline
 │   ├── eda.ipynb
 │   └── weight_tuning.ipynb
-│
+│   
 ├── tests/
 │   ├── test_ingestion.py
 │   ├── test_features.py
