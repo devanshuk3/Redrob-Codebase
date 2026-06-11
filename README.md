@@ -6,7 +6,7 @@ This system processes **100,000 candidate profiles** against a given job descrip
 
 ---
 
-## 🚀 Project Phases & Workflow
+## Project Phases & Workflow
 
 The system was developed and orchestrated following a structured 7-phase implementation plan:
 
@@ -23,7 +23,7 @@ The system was developed and orchestrated following a structured 7-phase impleme
 
 ---
 
-## 🏗️ System Architecture & Hybrid Scoring
+## System Architecture & Hybrid Scoring
 
 To ensure both robustness and deep understanding, the system uses a **multi-signal hybrid scoring pipeline**:
 
@@ -74,7 +74,7 @@ $$\text{Final Score} = 0.35 \times \text{Semantic Score} + 0.30 \times \text{Str
 
 ---
 
-## ⚡ Performance Constraints & Optimizations
+## Performance Constraints & Optimizations
 
 * **Execution Time**: Under **5 minutes** for 100k candidate profiles on standard CPU-only hardware.
 * **Memory Limits**: Operates within **16 GB RAM** via streaming files and pre-filtering candidate subsets before executing vector search.
@@ -82,7 +82,7 @@ $$\text{Final Score} = 0.35 \times \text{Semantic Score} + 0.30 \times \text{Str
 
 ---
 
-## 🛠️ Setup & Running
+## Setup & Running
 
 ### Installation
 Clone the repository and install the dependencies:
