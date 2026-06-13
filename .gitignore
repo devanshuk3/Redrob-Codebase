@@ -48,3 +48,6 @@ models/*
 
 outputs/*
 !outputs/.gitkeep
+
+Description_and_protocol/*
+!Description_and_protocol/.gitkeep

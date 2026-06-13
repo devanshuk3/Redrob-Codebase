@@ -7,7 +7,7 @@ candidate-ranking/
 │   └── job_description.md
 │
 ├── src/
-│   ├── ingestion/                 # Member A
+│   ├── ingestion/                 # Member A 
 │   │   ├── __init__.py
 │   │   ├── loader.py              # streaming data loader
 │   │   ├── validator.py           # schema validation

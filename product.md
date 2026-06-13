@@ -65,7 +65,7 @@ Required metadata:
 * Team name
 * Team members
 * Contact details
-* GitHub repository
+* GitHub repository 
 * Sandbox link
 * AI tool declaration
 * Compute environment summary
