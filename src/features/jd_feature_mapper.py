@@ -30,6 +30,14 @@ class JDFeatures:
     domain_keywords: List[str] = field(default_factory=list)
     raw_text: str = ""
 
+    @property
+    def min_experience(self) -> float:
+        return self.experience_range[0] if self.experience_range else 5.0
+
+    @property
+    def max_experience(self) -> float:
+        return self.experience_range[1] if len(self.experience_range) > 1 else (self.min_experience + 4.0)
+
     def all_skills(self) -> List[str]:
         """Return combined must-have and preferred skills."""
         return self.must_have_skills + self.preferred_skills

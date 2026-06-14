@@ -264,10 +264,14 @@ def build_debug_csv(
             
             # Additional scores (TASK 8)
             "experience_fit_score": round(entry.get("experience_fit_score", 1.0), 6),
+            "experience_distance": round(entry.get("experience_distance", 0.0), 2),
             "consistency_score": round(entry.get("consistency_score", 1.0), 6),
+            "education_consistency_score": round(entry.get("education_consistency_score", 1.0), 6),
             "trap_probability": round(entry.get("trap_probability", 0.0), 6),
             "assessment_score": round(entry.get("assessment_score", 0.0), 2),
             "assessment_modifier": round(entry.get("assessment_modifier", 1.0), 2),
+            "scale_boost": round(entry.get("scale_boost", 1.0), 2),
+            "behavioral_boost": round(entry.get("behavioral_boost", 1.0), 2),
 
             # Feature Importance
             "top_positive_features": top_pos,

@@ -142,37 +142,59 @@ def build_structured_features(
                 except (ValueError, TypeError):
                     continue
         if not relevant_scores:
-            for val in scores.values():
-                try:
-                    relevant_scores.append(float(val))
-                except (ValueError, TypeError):
-                    continue
-        if not relevant_scores:
             assessment_score = 0.0
             assessment_modifier = 1.0
         else:
             assessment_score = max(relevant_scores)
-            if assessment_score >= 80:
-                assessment_modifier = 1.15
+            if assessment_score >= 90:
+                assessment_modifier = 1.05
+            elif assessment_score >= 80:
+                assessment_modifier = 1.03
+            elif assessment_score >= 70:
+                assessment_modifier = 1.01
             elif assessment_score >= 60:
-                assessment_modifier = 1.0
+                assessment_modifier = 1.00
+            elif assessment_score >= 50:
+                assessment_modifier = 0.99
             elif assessment_score >= 40:
-                assessment_modifier = 0.85
+                assessment_modifier = 0.97
             else:
-                assessment_modifier = 0.70
+                assessment_modifier = 0.95
 
     # Retrieve skill score and apply assessment_modifier
     skill = score_skills(candidate, jd_features)
     skill = skill * assessment_modifier
 
     # ── Experience Fit Score (TASK 1) ────────────────────────────────
-    experience_fit = compute_experience_fit_score(candidate.years_of_experience)
+    experience_fit, experience_dist = compute_experience_fit_score(
+        candidate.years_of_experience,
+        jd_features.min_experience,
+        jd_features.max_experience,
+        return_distance=True
+    )
 
     # ── Consistency & Trap Probability (TASK 2 & 3) ──────────────────
     consistency = compute_consistency_score(candidate)
     trap_prob = compute_trap_probability(candidate)
 
-    # ── Compute LLM hype penalty (TASK 4) ────────────────────────────
+    # ── Education Consistency Score (TASK 2) ──────────────────────────
+    from src.ingestion.honeypot_filter import get_candidate_issues
+    issues = get_candidate_issues(candidate)
+    edu_consistency = issues.get("EDUCATION_CHRONOLOGY", {}).get("score", 1.0)
+
+    # ── Technical and Behavioral Rewards (TASK 6 Boosts) ──────────────
+    # A. Scale Boost: if career history shows scale / production / latency metrics
+    career_desc = " ".join([c.description.lower() for c in candidate.career_history if c.description])
+    has_scale_terms = any(w in career_desc for w in ["scale", "million", "billion", "qps", "latency", "throughput", "production", "shipped", "deployed"])
+    scale_boost = 1.03 if has_scale_terms else 1.0
+
+    # B. Behavioral Boost: strong response rate and active GitHub
+    sig = candidate.redrob_signals
+    behavioral_boost = 1.0
+    if sig.recruiter_response_rate >= 0.8 and sig.github_activity_score > 70:
+        behavioral_boost = 1.03
+
+    # ── Compute LLM hype penalty ─────────────────────────────────────
     hype_penalty = _compute_llm_hype_penalty(candidate, retrieval, ranking, evaluation, production)
 
     # ── Compute structured score (weighted combination) ──────────────
@@ -219,8 +241,13 @@ def build_structured_features(
         "structured_score": round(structured_score, 4),
         "llm_hype_penalty": round(hype_penalty, 4),
         "experience_fit_score": round(experience_fit, 4),
+        "experience_distance": round(experience_dist, 2),
         "consistency_score": round(consistency, 4),
+        "education_consistency_score": round(edu_consistency, 4),
         "trap_probability": round(trap_prob, 4),
         "assessment_score": round(assessment_score, 2),
         "assessment_modifier": round(assessment_modifier, 2),
+        "scale_boost": round(scale_boost, 2),
+        "behavioral_boost": round(behavioral_boost, 2),
     }
+

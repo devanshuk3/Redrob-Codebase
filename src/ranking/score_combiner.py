@@ -49,15 +49,34 @@ def combine_scores(
             + Config.WEIGHT_QUALITY * quality
         )
 
-        # 2. Apply experience fit modifier (TASK 1)
+        # 2. Apply experience fit modifier (TASK 1 - smooth dynamic curve: inside -> 1.0, 1 yr -> 0.9, 3 yr -> 0.75, 6+ yr -> 0.5)
         exp_fit = features.get("experience_fit_score", 1.0)
-        fit_modifier = 0.70 + 0.30 * exp_fit
+        fit_modifier = exp_fit
         final_score = base_score * fit_modifier
 
         # 3. Apply trap probability penalty (TASK 3)
         trap_prob = features.get("trap_probability", 0.0)
         trap_penalty = 1.0 - 0.20 * trap_prob
         final_score = final_score * trap_penalty
+
+        # 4. Apply positive technical rewards (TASK 6 - shift to 70% reward, 30% penalty philosophy)
+        retrieval = features.get("retrieval_score", 0.0)
+        ranking = features.get("ranking_score", 0.0)
+        evaluation = features.get("evaluation_score", 0.0)
+        production = features.get("production_score", 0.0)
+        
+        tech_scores = [retrieval, ranking, evaluation, production]
+        strong_tech_count = sum(1 for s in tech_scores if s >= 0.6)
+        domain_boost = 1.0
+        if strong_tech_count >= 3:
+            domain_boost = 1.05  # 5% boost for true multi-domain technical experts
+        elif strong_tech_count == 2:
+            domain_boost = 1.02  # 2% boost
+            
+        scale_boost = features.get("scale_boost", 1.0)
+        behavioral_boost = features.get("behavioral_boost", 1.0)
+        
+        final_score = final_score * domain_boost * scale_boost * behavioral_boost
 
         results.append({
             "candidate_id": cid,

@@ -304,5 +304,5 @@ class TestFeatureBuilder:
         assert "structured_score" in features
         # All scores should be 0-1
         for key, val in features.items():
-            if key != "candidate_id":
+            if key not in ("candidate_id", "scale_boost", "behavioral_boost", "assessment_modifier", "experience_distance"):
                 assert 0.0 <= val <= 1.0, f"{key} = {val} is out of [0, 1]"

@@ -62,24 +62,47 @@ def score_experience(candidate: Candidate, jd_features: JDFeatures) -> float:
     return round(min(1.0, score), 4)
 
 
-def compute_experience_fit_score(yoe: float) -> float:
+def compute_experience_fit_score(
+    yoe: float,
+    min_exp: float = 5.0,
+    max_exp: float = 9.0,
+    return_distance: bool = False
+):
     """
     Compute experience fit score.
-    Targets ~5-9 years experience (full score).
-    Small penalty below/above range.
-    3-4 years -> moderate penalty (0.8)
-    10-14 years -> moderate penalty (0.8)
-    15+ years -> stronger penalty (0.5)
-    Under 3 years -> strongest penalty (0.3)
+    Uses a smooth distance-based curve.
+    
+    Inside range -> 1.0
+    1 year outside -> ~0.9
+    3 years outside -> ~0.75
+    6+ years outside -> ~0.5
+    
+    Do not use hard thresholds.
     """
-    if 5.0 <= yoe <= 9.0:
-        return 1.0
-    elif 3.0 <= yoe < 5.0:
-        return 0.8
-    elif 10.0 <= yoe <= 14.0:
-        return 0.8
-    elif yoe >= 15.0:
-        return 0.5
+    if yoe < min_exp:
+        distance = min_exp - yoe
+    elif yoe > max_exp:
+        distance = yoe - max_exp
     else:
-        return 0.3
+        distance = 0.0
+
+    if distance == 0.0:
+        score = 1.0
+    elif distance <= 1.0:
+        # Interpolate between (0, 1.0) and (1.0, 0.9)
+        score = 1.0 - 0.1 * distance
+    elif distance <= 3.0:
+        # Interpolate between (1.0, 0.9) and (3.0, 0.75)
+        score = 0.9 - 0.075 * (distance - 1.0)
+    elif distance <= 6.0:
+        # Interpolate between (3.0, 0.75) and (6.0, 0.5)
+        score = 0.75 - (0.25 / 3.0) * (distance - 3.0)
+    else:
+        # For > 6.0, decay slowly to a floor of 0.3
+        score = max(0.3, 0.5 - 0.02 * (distance - 6.0))
+
+    if return_distance:
+        return round(score, 4), round(distance, 2)
+    return round(score, 4)
+
 
