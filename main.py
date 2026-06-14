@@ -45,7 +45,7 @@ from src.semantic.semantic_ranker import compute_semantic_scores
 from src.ranking.score_combiner import combine_scores
 from src.ranking.ranker import rank_candidates
 from src.ranking.reasoning_generator import generate_reasoning
-from src.ranking.submission_builder import build_submission, save_full_scores
+from src.ranking.submission_builder import build_submission, save_full_scores, build_debug_csv
 
 logger = get_logger(__name__)
 
@@ -222,6 +222,9 @@ def main():
     # ── 11. Build & Validate Submission ──────────────────────────────
     logger.info("Phase 10: Building submission CSV...")
     df = build_submission(ranked, output_path=args.output)
+
+    # Generate debug CSV with original details
+    build_debug_csv(ranked, candidate_map)
 
     # Also save full scores for analysis
     save_full_scores(scored_candidates)

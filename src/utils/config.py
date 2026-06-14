@@ -25,6 +25,8 @@ class Config:
     JD_FILE = os.path.join(DATA_DIR, "job_description.md")
     SUBMISSION_FILE = os.path.join(OUTPUTS_DIR, "submission.csv")
     CANDIDATE_SCORES_FILE = os.path.join(OUTPUTS_DIR, "candidate_scores.csv")
+    DEBUG_DIR = os.path.join(OUTPUTS_DIR, "debug")
+    DEBUG_FILE = os.path.join(DEBUG_DIR, "candidate_debug.csv")
 
     EMBEDDINGS_FILE = os.path.join(MODELS_DIR, "candidate_embeddings.npy")
     EMBEDDING_IDS_FILE = os.path.join(MODELS_DIR, "candidate_ids.npy")
@@ -85,4 +87,5 @@ class Config:
         """Create output directories if they don't exist."""
         os.makedirs(cls.OUTPUTS_DIR, exist_ok=True)
         os.makedirs(cls.LOGS_DIR, exist_ok=True)
+        os.makedirs(cls.DEBUG_DIR, exist_ok=True)
         os.makedirs(cls.MODELS_DIR, exist_ok=True)
