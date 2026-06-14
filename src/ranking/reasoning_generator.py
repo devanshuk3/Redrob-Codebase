@@ -70,7 +70,7 @@ def _build_reasoning(
     """Build a reasoning string from actual candidate data structured into 4 parts."""
     yoe = candidate.years_of_experience
     
-    # ── 1. Technical Signal ──────────────────────────────────────────
+    # 1. Technical Signal
     tech_skills = get_matched_skills(candidate, jd_features)
     tech_skills = _deduplicate_skills(tech_skills)
     
@@ -109,7 +109,7 @@ def _build_reasoning(
     if not tech_sentence.endswith("."):
         tech_sentence += "."
 
-    # ── 2. Production Signal ─────────────────────────────────────────
+    # 2. Production Signal
     prod_score = scores.get("production_score", 0.0)
     career_desc = " ".join([c.description.lower() for c in candidate.career_history if c.description])
     has_scale = any(w in career_desc for w in ["scale", "million", "million users", "high traffic", "low latency", "qps", "production"])
@@ -121,7 +121,7 @@ def _build_reasoning(
     else:
         prod_sentence = "Focuses primarily on model development and engineering."
 
-    # ── 3. Hiring Signal ─────────────────────────────────────────────
+    # 3. Hiring Signal
     sig = candidate.redrob_signals
     hiring_parts = []
     if sig.recruiter_response_rate >= 0.7:
@@ -142,7 +142,7 @@ def _build_reasoning(
     else:
         hiring_sentence = "Hiring readiness is within standard parameters."
 
-    # ── 4. Optional Concern ──────────────────────────────────────────
+    # 4. Optional Concern
     concerns = []
     if notice > 90:
         concerns.append(f"long notice period of {notice} days")

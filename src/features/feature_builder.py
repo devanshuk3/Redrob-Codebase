@@ -114,7 +114,7 @@ def build_structured_features(
         - assessment_score
         - assessment_modifier
     """
-    # ── Compute individual sub-scores ────────────────────────────────
+    # Compute individual sub-scores
     retrieval = score_retrieval(candidate)
     ranking = score_ranking(candidate)
     evaluation = score_evaluation(candidate)
@@ -125,7 +125,7 @@ def build_structured_features(
     career = score_career(candidate, jd_features)
     behavioral = score_behavioral(candidate)
 
-    # ── Skill Assessment Modifier & Score (TASK 7) ───────────────────
+    # Skill Assessment Modifier & Score (TASK 7)
     scores = candidate.redrob_signals.skill_assessment_scores or {}
     if not scores:
         assessment_score = 0.0
@@ -165,7 +165,7 @@ def build_structured_features(
     skill = score_skills(candidate, jd_features)
     skill = skill * assessment_modifier
 
-    # ── Experience Fit Score (TASK 1) ────────────────────────────────
+    # Experience Fit Score (TASK 1)
     experience_fit, experience_dist = compute_experience_fit_score(
         candidate.years_of_experience,
         jd_features.min_experience,
@@ -173,16 +173,16 @@ def build_structured_features(
         return_distance=True
     )
 
-    # ── Consistency & Trap Probability (TASK 2 & 3) ──────────────────
+    # Consistency & Trap Probability (TASK 2 & 3)
     consistency = compute_consistency_score(candidate)
     trap_prob = compute_trap_probability(candidate)
 
-    # ── Education Consistency Score (TASK 2) ──────────────────────────
+    # Education Consistency Score (TASK 2)
     from src.ingestion.honeypot_filter import get_candidate_issues
     issues = get_candidate_issues(candidate)
     edu_consistency = issues.get("EDUCATION_CHRONOLOGY", {}).get("score", 1.0)
 
-    # ── Technical and Behavioral Rewards (TASK 6 Boosts) ──────────────
+    # Technical and Behavioral Rewards (TASK 6 Boosts)
     # A. Scale Boost: if career history shows scale / production / latency metrics
     career_desc = " ".join([c.description.lower() for c in candidate.career_history if c.description])
     has_scale_terms = any(w in career_desc for w in ["scale", "million", "billion", "qps", "latency", "throughput", "production", "shipped", "deployed"])
@@ -194,10 +194,10 @@ def build_structured_features(
     if sig.recruiter_response_rate >= 0.8 and sig.github_activity_score > 70:
         behavioral_boost = 1.03
 
-    # ── Compute LLM hype penalty ─────────────────────────────────────
+    # Compute LLM hype penalty
     hype_penalty = _compute_llm_hype_penalty(candidate, retrieval, ranking, evaluation, production)
 
-    # ── Compute structured score (weighted combination) ──────────────
+    # Compute structured score (weighted combination)
     structured_score = (
         Config.STRUCT_WEIGHT_SKILL * skill
         + Config.STRUCT_WEIGHT_RETRIEVAL * retrieval

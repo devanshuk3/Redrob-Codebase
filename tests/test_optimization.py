@@ -65,7 +65,7 @@ def _make_candidate(**overrides):
     return Candidate(**defaults)
 
 
-# ── TASK 1: Skills Score is Non-Zero ────────────────────────────────
+# TASK 1: Skills Score is Non-Zero
 
 class TestSkillsScoreNonZero:
     """Prove that skills_score is actually computed and non-zero."""
@@ -169,7 +169,7 @@ class TestSkillsContributeToFinal:
             "Candidate with matching skills should have higher structured_score"
 
 
-# ── TASK 2: Skill Metadata Exploitation ─────────────────────────────
+# TASK 2: Skill Metadata Exploitation
 
 class TestSkillMetadata:
     """Verify proficiency, duration, endorsements affect scoring."""
@@ -210,7 +210,7 @@ class TestSkillMetadata:
         assert strength > 0.5, f"Expert+long+endorsed should have high strength, got {strength}"
 
 
-# ── TASK 3: LLM Hype Penalty ────────────────────────────────────────
+# TASK 3: LLM Hype Penalty
 
 class TestLLMHypePenalty:
     """Verify LLM-hype candidates are penalized."""
@@ -245,7 +245,7 @@ class TestLLMHypePenalty:
 
 
 
-# ── TASK 8: Assessment Scores ───────────────────────────────────────
+# TASK 8: Assessment Scores
 
 class TestAssessmentScores:
     """Verify skill_assessment_scores modify confidence."""
@@ -278,7 +278,7 @@ class TestAssessmentScores:
             f"High assessment ({score_high}) should beat low assessment ({score_low})"
 
 
-# ── TASK 1 & 2 & 3: Experience Fit & Consistency & Trap Probability ──
+# TASK 1 & 2 & 3: Experience Fit & Consistency & Trap Probability
 
 class TestPipelineOptimizationFeatures:
     """Verify experience fit scoring, consistency checks, and trap probability detection."""

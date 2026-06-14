@@ -26,7 +26,7 @@ from src.features.production_scorer import score_production
 from src.features.feature_builder import build_structured_features
 
 
-# ── Helpers ──────────────────────────────────────────────────────────
+# Helpers
 
 def _make_jd_features(**kwargs):
     defaults = {
@@ -84,21 +84,21 @@ def _make_candidate(**overrides):
     return Candidate(**defaults)
 
 
-# ── JD Feature Mapper Tests ─────────────────────────────────────────
+# JD Feature Mapper Tests
 
 class TestJDFeatureMapper:
     def test_parse_from_text(self):
         jd_text = """
 # Senior ML Engineer
 
-## Requirements
+# # Requirements
 - Python expertise
 - Machine Learning experience
 - 5-9 years of experience
 - Retrieval systems
 - Search ranking
 
-## Preferred
+# # Preferred
 - Docker
 - Kubernetes
 - MLOps
@@ -115,7 +115,7 @@ class TestJDFeatureMapper:
         assert features.experience_range  # should have defaults
 
 
-# ── Skill Extractor Tests ────────────────────────────────────────────
+# Skill Extractor Tests
 
 class TestSkillExtractor:
     def test_exact_match(self):
@@ -143,7 +143,7 @@ class TestSkillExtractor:
         assert "Python" in matched
 
 
-# ── Experience Scorer Tests ──────────────────────────────────────────
+# Experience Scorer Tests
 
 class TestExperienceScorer:
     def test_ideal_range(self):
@@ -165,7 +165,7 @@ class TestExperienceScorer:
         assert score >= 0.0
 
 
-# ── Education Scorer Tests ───────────────────────────────────────────
+# Education Scorer Tests
 
 class TestEducationScorer:
     def test_cs_masters(self):
@@ -186,7 +186,7 @@ class TestEducationScorer:
         assert score < 0.5
 
 
-# ── Retrieval Scorer Tests ───────────────────────────────────────────
+# Retrieval Scorer Tests
 
 class TestRetrievalScorer:
     def test_strong_retrieval(self):
@@ -211,7 +211,7 @@ class TestRetrievalScorer:
         assert score < 0.3
 
 
-# ── Ranking Scorer Tests ────────────────────────────────────────────
+# Ranking Scorer Tests
 
 class TestRankingScorer:
     def test_strong_ranking(self):
@@ -236,7 +236,7 @@ class TestRankingScorer:
         assert score < 0.3
 
 
-# ── Production Scorer Tests ──────────────────────────────────────────
+# Production Scorer Tests
 
 class TestProductionScorer:
     def test_strong_production(self):
@@ -262,7 +262,7 @@ class TestProductionScorer:
         assert score < 0.5
 
 
-# ── Behavioral Scorer Tests ──────────────────────────────────────────
+# Behavioral Scorer Tests
 
 class TestBehavioralScorer:
     def test_active_candidate(self):
@@ -286,7 +286,7 @@ class TestBehavioralScorer:
         assert score < 0.5
 
 
-# ── Feature Builder Tests ────────────────────────────────────────────
+# Feature Builder Tests
 
 class TestFeatureBuilder:
     def test_builds_all_scores(self):

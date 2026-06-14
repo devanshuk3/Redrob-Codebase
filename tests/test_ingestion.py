@@ -19,7 +19,7 @@ from src.ingestion.candidate_parser import parse_candidate, Candidate
 from src.ingestion.honeypot_filter import compute_quality_score
 
 
-# ── Fixtures ─────────────────────────────────────────────────────────
+# Fixtures
 
 def _make_raw_candidate(**overrides):
     """Create a minimal valid raw candidate dict."""
@@ -105,7 +105,7 @@ def _deep_update(base, overrides):
             base[k] = v
 
 
-# ── Schema Validator Tests ───────────────────────────────────────────
+# Schema Validator Tests
 
 class TestSchemaValidator:
     def test_valid_record(self):
@@ -150,7 +150,7 @@ class TestSchemaValidator:
         assert not is_valid
 
 
-# ── Candidate Parser Tests ───────────────────────────────────────────
+# Candidate Parser Tests
 
 class TestCandidateParser:
     def test_basic_parsing(self):
@@ -189,7 +189,7 @@ class TestCandidateParser:
         assert candidate.redrob_signals.github_activity_score == 75.0
 
 
-# ── Honeypot Filter Tests ────────────────────────────────────────────
+# Honeypot Filter Tests
 
 class TestHoneypotFilter:
     def test_normal_candidate_high_quality(self):
@@ -236,7 +236,7 @@ class TestHoneypotFilter:
         assert score < 0.9, f"Short career + many skills should be penalized, got {score}"
 
 
-# ── Data Loader Tests ────────────────────────────────────────────────
+# Data Loader Tests
 
 class TestDataLoader:
     def test_load_with_limit(self):

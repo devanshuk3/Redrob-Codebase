@@ -52,7 +52,7 @@ class JDFeatures:
         }
 
 
-# ── Keyword groups for classification ────────────────────────────────
+# Keyword groups for classification
 _MUST_HAVE_HEADERS = [
     "required", "must have", "requirements", "mandatory",
     "essential", "minimum qualifications", "key skills",
@@ -126,7 +126,7 @@ def parse_job_description(filepath: Optional[str] = None, jd_text: Optional[str]
     jd_lower = jd_text.lower()
     features = JDFeatures(raw_text=jd_text)
 
-    # ── Extract skills by section ────────────────────────────────────
+    # Extract skills by section
     sections = _split_into_sections(jd_text)
 
     must_have_skills = set()
@@ -159,10 +159,10 @@ def parse_job_description(filepath: Optional[str] = None, jd_text: Optional[str]
     features.must_have_skills = sorted(must_have_skills)
     features.preferred_skills = sorted(preferred_skills - must_have_skills)
 
-    # ── Extract experience range ─────────────────────────────────────
+    # Extract experience range
     features.experience_range = _extract_experience_range(jd_lower)
 
-    # ── Extract domain keywords ──────────────────────────────────────
+    # Extract domain keywords
     found_domains = [kw for kw in _DOMAIN_KEYWORDS if kw in jd_lower]
     features.domain_keywords = sorted(set(found_domains))
 
@@ -185,10 +185,10 @@ def _split_into_sections(text: str) -> Dict[str, str]:
     for line in text.split("\n"):
         stripped = line.strip()
         # Detect markdown headers
-        if stripped.startswith("#") or (stripped and stripped.endswith(":") and len(stripped) < 80):
+        if stripped.startswith("# ") or (stripped and stripped.endswith(":") and len(stripped) < 80):
             if current_content:
                 sections[current_header] = "\n".join(current_content)
-            current_header = stripped.lstrip("#").strip().rstrip(":")
+            current_header = stripped.lstrip("# ").strip().rstrip(":")
             current_content = []
         else:
             current_content.append(line)

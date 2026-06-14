@@ -3,7 +3,7 @@ Keyword constants for feature extraction.
 Organized by detection domain — all lowercase for matching.
 """
 
-# ── Target Skills (detected via fuzzy matching against JD) ────────────
+# Target Skills (detected via fuzzy matching against JD)
 # These are fallback defaults; the JD feature mapper will override them.
 DEFAULT_TARGET_SKILLS = [
     "python", "machine learning", "deep learning", "pytorch", "tensorflow",
@@ -15,7 +15,7 @@ DEFAULT_TARGET_SKILLS = [
     "elasticsearch", "milvus", "pinecone", "weaviate", "faiss",
 ]
 
-# ── Retrieval Domain Keywords (CHANGE 2 — strengthened) ──────────────
+# Retrieval Domain Keywords (CHANGE 2 — strengthened)
 RETRIEVAL_KEYWORDS = [
     "semantic search", "retrieval", "hybrid search", "vector search",
     "rag", "retrieval augmented generation", "candidate matching",
@@ -43,7 +43,7 @@ RETRIEVAL_SKILL_KEYWORDS = {
     "vector search", "dense retrieval", "neural search",
 }
 
-# ── Ranking/Recommendation Keywords (CHANGE 2 — strengthened) ────────
+# Ranking/Recommendation Keywords (CHANGE 2 — strengthened)
 RANKING_KEYWORDS = [
     "ranking systems", "recommendation systems", "recommender systems",
     "matching systems", "learning to rank", "search ranking",
@@ -69,7 +69,7 @@ RANKING_SKILL_KEYWORDS = {
     "candidate matching", "search ranking",
 }
 
-# ── Evaluation Framework Keywords (CHANGE 2 — strengthened) ──────────
+# Evaluation Framework Keywords (CHANGE 2 — strengthened)
 EVALUATION_KEYWORDS = [
     "ndcg", "map", "mrr", "recall@k", "precision@k",
     "a/b testing", "online evaluation", "offline evaluation",
@@ -88,7 +88,7 @@ EVALUATION_KEYWORDS = [
     "benchmark", "test set", "ground truth",
 ]
 
-# ── Production/Deployment Keywords (CHANGE 3 — strengthened) ─────────
+# Production/Deployment Keywords (CHANGE 3 — strengthened)
 PRODUCTION_KEYWORDS = [
     "deployed", "production", "latency", "serving", "monitoring",
     "observability", "millions of users", "scale", "distributed systems",
@@ -111,7 +111,7 @@ PRODUCTION_KEYWORDS = [
     "system design", "architecture design",
 ]
 
-# ── LLM Hype Keywords (TASK 3) ──────────────────────────────────────
+# LLM Hype Keywords (TASK 3)
 LLM_HYPE_KEYWORDS = [
     "langchain", "openai", "prompt engineering", "chatgpt",
     "claude", "gemini", "gpt-4", "gpt-3", "gpt3", "gpt4",
@@ -131,7 +131,7 @@ REAL_ML_DEPTH_KEYWORDS = [
     "feature engineering", "data pipeline",
 ]
 
-# ── Education: Relevant Fields ───────────────────────────────────────
+# Education: Relevant Fields
 RELEVANT_EDUCATION_FIELDS = [
     "computer science", "artificial intelligence", "machine learning",
     "data science", "software engineering", "information technology",
@@ -139,7 +139,7 @@ RELEVANT_EDUCATION_FIELDS = [
     "statistics", "computational linguistics", "cognitive science",
 ]
 
-# ── Degree Level Weights ─────────────────────────────────────────────
+# Degree Level Weights
 DEGREE_WEIGHTS = {
     "phd": 1.0, "ph.d": 1.0, "doctorate": 1.0,
     "masters": 0.8, "master": 0.8, "m.s.": 0.8, "m.sc": 0.8,
@@ -149,7 +149,7 @@ DEGREE_WEIGHTS = {
     "diploma": 0.3, "associate": 0.3,
 }
 
-# ── Certification Keywords ───────────────────────────────────────────
+# Certification Keywords
 RELEVANT_CERTIFICATIONS = [
     "aws machine learning", "aws ml", "aws certified machine learning",
     "google cloud machine learning", "google ml", "gcp ml",
@@ -162,7 +162,7 @@ RELEVANT_CERTIFICATIONS = [
     "huggingface", "langchain",
 ]
 
-# ── Tier Weights (institution quality) ───────────────────────────────
+# Tier Weights (institution quality)
 TIER_WEIGHTS = {
     "tier_1": 1.0,
     "tier_2": 0.75,
@@ -170,7 +170,7 @@ TIER_WEIGHTS = {
     "tier_4": 0.25,
 }
 
-# ── Proficiency Multipliers ──────────────────────────────────────────
+# Proficiency Multipliers
 PROFICIENCY_WEIGHTS = {
     "expert": 1.0,
     "advanced": 1.0,
@@ -178,7 +178,7 @@ PROFICIENCY_WEIGHTS = {
     "beginner": 0.4,
 }
 
-# ── Skill Domains for Consistency Checking (TASK 7) ──────────────────
+# Skill Domains for Consistency Checking (TASK 7)
 UNRELATED_SKILL_DOMAINS = {
     "mechanical": ["mechanical design", "autocad", "solidworks", "catia", "ansys",
                     "mechanical engineering", "thermodynamics", "fluid mechanics"],

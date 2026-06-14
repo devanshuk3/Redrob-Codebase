@@ -11,10 +11,10 @@ import numpy as np
 class Config:
     """Pipeline configuration — all weights, thresholds, and paths."""
 
-    # ── Reproducibility ──────────────────────────────────────────────
+    # Reproducibility
     RANDOM_SEED = 42
 
-    # ── Paths ────────────────────────────────────────────────────────
+    # Paths
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     DATA_DIR = os.path.join(BASE_DIR, "data")
     MODELS_DIR = os.path.join(BASE_DIR, "models")
@@ -32,12 +32,12 @@ class Config:
     EMBEDDING_IDS_FILE = os.path.join(MODELS_DIR, "candidate_ids.npy")
     JD_EMBEDDING_FILE = os.path.join(MODELS_DIR, "jd_embedding.npy")
 
-    # ── Model ────────────────────────────────────────────────────────
+    # Model
     SENTENCE_MODEL_NAME = "all-MiniLM-L6-v2"
     SENTENCE_MODEL_DIR = os.path.join(MODELS_DIR, "all-MiniLM-L6-v2")
     EMBEDDING_BATCH_SIZE = 512
 
-    # ── Final Score Weights (TASK 11 — rebalanced) ───────────────────
+    # Final Score Weights (TASK 11 — rebalanced)
     # technical_fit=60%, experience_fit=20%, behavioral_fit=15%, hiring_fit=5%
     # semantic ≈ holistic technical signal, structured = granular technical+experience
     # behavioral = hiring readiness, quality = profile trust
@@ -46,7 +46,7 @@ class Config:
     WEIGHT_BEHAVIORAL = 0.15      # hiring readiness signals
     WEIGHT_QUALITY = 0.10         # profile trustworthiness
 
-    # ── Structured Sub-Score Weights (TASK 11 — rebalanced) ──────────
+    # Structured Sub-Score Weights (TASK 11 — rebalanced)
     # Technical relevance must dominate within structured scoring.
     STRUCT_WEIGHT_SKILL = 0.20         # JD skill matching
     STRUCT_WEIGHT_RETRIEVAL = 0.20     # retrieval/search domain
@@ -57,33 +57,33 @@ class Config:
     STRUCT_WEIGHT_EDUCATION = 0.05     # education (de-prioritized)
     STRUCT_WEIGHT_CERTIFICATION = 0.05 # certifications (de-prioritized)
 
-    # ── Pre-filter Thresholds (CHANGE 5) ─────────────────────────────
+    # Pre-filter Thresholds (CHANGE 5)
     QUALITY_FILTER_THRESHOLD = 0.20       # drop candidates below this quality
     STRUCTURED_TOP_K = 5000               # top-K after structured scoring → semantic
 
-    # ── Honeypot Thresholds (CHANGE 6) ───────────────────────────────
+    # Honeypot Thresholds (CHANGE 6)
     MAX_SKILLS_REASONABLE = 60
     MAX_SALARY_FOR_LOW_EXP = 30.0         # LPA — unreasonable for <2 yr exp
     LOW_EXP_THRESHOLD_YEARS = 2.0
     MIN_QUALITY_FOR_INCLUSION = 0.20
 
-    # ── Experience Ideal Range ───────────────────────────────────────
+    # Experience Ideal Range
     EXPERIENCE_IDEAL_MIN = 5
     EXPERIENCE_IDEAL_MAX = 9
 
-    # ── Ranking Output ───────────────────────────────────────────────
+    # Ranking Output
     TOP_N = 100
 
-    # ── Fuzzy Matching ───────────────────────────────────────────────
+    # Fuzzy Matching
     FUZZY_MATCH_THRESHOLD = 80
 
-    # ── LLM Hype Penalty (TASK 3) ────────────────────────────────────
+    # LLM Hype Penalty (TASK 3)
     LLM_HYPE_PENALTY_MAX = 0.12           # maximum penalty for hype-heavy profiles
 
-    # ── Notice Period Penalty (TASK 9) ───────────────────────────────
+    # Notice Period Penalty (TASK 9)
     NOTICE_PERIOD_PENALTY_MAX = 0.05      # max deduction for long notice
 
-    # ── Relocation Bonus (TASK 10) ───────────────────────────────────
+    # Relocation Bonus (TASK 10)
     RELOCATION_BONUS = 0.02               # small bonus for willing to relocate
 
     @classmethod

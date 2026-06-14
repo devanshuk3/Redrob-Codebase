@@ -50,14 +50,14 @@ def build_submission(
 
     df = pd.DataFrame(rows)
 
-    # ── Validation ───────────────────────────────────────────────────
+    # Validation
     errors = validate_submission(df)
     if errors:
         for err in errors:
             logger.error(f"Validation error: {err}")
         raise ValueError(f"Submission validation failed with {len(errors)} errors")
 
-    # ── Save ─────────────────────────────────────────────────────────
+    # Save
     df.to_csv(output_path, index=False, encoding="utf-8")
     logger.info(f"Submission saved: {output_path} ({len(df)} rows)")
 

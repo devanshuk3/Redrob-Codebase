@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+# !/usr/bin/env python3
 """
 RedRob Candidate Ranking Pipeline — Single Entrypoint.
 
@@ -60,14 +60,14 @@ def main():
 
     pipeline_start = time.time()
 
-    # ── 0. Setup ─────────────────────────────────────────────────────
+    # 0. Setup
     Config.seed_everything()
     Config.ensure_dirs()
     logger.info("=" * 70)
     logger.info("RedRob Candidate Ranking Pipeline — Starting")
     logger.info("=" * 70)
 
-    # ── 1. Validate JD exists (CHANGE 1 — no hardcoded JD) ──────────
+    # 1. Validate JD exists (CHANGE 1 — no hardcoded JD)
     jd_path = args.jd
     if not os.path.exists(jd_path):
         logger.error(
@@ -76,7 +76,7 @@ def main():
         )
         sys.exit(1)
 
-    # ── 2. Parse Job Description ─────────────────────────────────────
+    # 2. Parse Job Description
     logger.info("Phase 1: Parsing job description...")
     jd_features = parse_job_description(jd_path)
     jd_raw_text = open(jd_path, "r", encoding="utf-8").read()
@@ -84,7 +84,7 @@ def main():
     logger.info(f"  Experience range: {jd_features.experience_range}")
     logger.info(f"  Domain keywords: {jd_features.domain_keywords[:10]}")
 
-    # ── 3. Load & Validate Candidates ────────────────────────────────
+    # 3. Load & Validate Candidates
     logger.info("Phase 2: Loading and validating candidates...")
     t0 = time.time()
     raw_records = load_candidates(limit=args.limit)
@@ -105,7 +105,7 @@ def main():
         f"({invalid_count} rejected) in {time.time() - t0:.1f}s"
     )
 
-    # ── 4. Quality Filtering (CHANGE 6 — strengthened honeypot) ──────
+    # 4. Quality Filtering (CHANGE 6 — strengthened honeypot)
     logger.info("Phase 3: Quality filtering (honeypot detection)...")
     t0 = time.time()
     quality_scores: Dict[str, float] = {}
@@ -125,7 +125,7 @@ def main():
         f"{removed} removed in {time.time() - t0:.1f}s"
     )
 
-    # ── 5. Structured Feature Extraction (CHANGE 8 — expanded) ───────
+    # 5. Structured Feature Extraction (CHANGE 8 — expanded)
     logger.info("Phase 4: Structured feature extraction...")
     t0 = time.time()
     candidate_features: Dict[str, Dict[str, Any]] = {}
@@ -136,7 +136,7 @@ def main():
 
     logger.info(f"  Extracted features for {len(candidate_features)} candidates in {time.time() - t0:.1f}s")
 
-    # ── 6. Pre-Filter: Select Top K by Structured Score (CHANGE 5) ───
+    # 6. Pre-Filter: Select Top K by Structured Score (CHANGE 5)
     logger.info(f"Phase 5: Pre-filtering to top {Config.STRUCTURED_TOP_K} by structured score...")
     sorted_by_structured = sorted(
         candidate_features.items(),
@@ -148,7 +148,7 @@ def main():
 
     logger.info(f"  Selected {len(top_k_candidates)} candidates for semantic reranking")
 
-    # ── 7. Semantic Embedding & Similarity ───────────────────────────
+    # 7. Semantic Embedding & Similarity
     logger.info("Phase 6: Semantic embedding and similarity...")
     t0 = time.time()
 
@@ -199,7 +199,7 @@ def main():
 
     logger.info(f"  Semantic scoring complete in {time.time() - t0:.1f}s")
 
-    # ── 8. Score Combination (CHANGE 7 — rebalanced) ─────────────────
+    # 8. Score Combination (CHANGE 7 — rebalanced)
     logger.info("Phase 7: Score combination...")
 
     # Only combine scores for candidates that went through semantic
@@ -210,16 +210,16 @@ def main():
         top_k_features, semantic_scores, top_k_quality
     )
 
-    # ── 9. Rank & Select Top 100 ─────────────────────────────────────
+    # 9. Rank & Select Top 100
     logger.info("Phase 8: Ranking and selection...")
     ranked = rank_candidates(scored_candidates, top_n=Config.TOP_N)
 
-    # ── 10. Reasoning Generation (CHANGE 9 — template-based) ────────
+    # 10. Reasoning Generation (CHANGE 9 — template-based)
     logger.info("Phase 9: Generating reasoning...")
     candidate_map = {c.candidate_id: c for c in top_k_candidates}
     ranked = generate_reasoning(ranked, candidate_map, jd_features)
 
-    # ── 11. Build & Validate Submission ──────────────────────────────
+    # 11. Build & Validate Submission
     logger.info("Phase 10: Building submission CSV...")
     df = build_submission(ranked, output_path=args.output)
 
@@ -229,7 +229,7 @@ def main():
     # Also save full scores for analysis
     save_full_scores(scored_candidates)
 
-    # ── Done ─────────────────────────────────────────────────────────
+    # Done
     elapsed = time.time() - pipeline_start
     logger.info("=" * 70)
     logger.info(f"Pipeline complete in {elapsed:.1f}s")
