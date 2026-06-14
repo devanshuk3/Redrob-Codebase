@@ -77,6 +77,8 @@ $$\text{Final Score} = 0.35 \times \text{Semantic Score} + 0.30 \times \text{Str
 ## Performance Constraints & Optimizations
 
 * **Execution Time**: Under **5 minutes** for 100k candidate profiles on standard CPU-only hardware.
+  - **Cold Start** (no cached embeddings, includes first-time local model loading and embedding generation for the top 5,000 pre-selected candidates): **~189.8 seconds** (~3 minutes 10 seconds).
+  - **Warm Start** (retrieving pre-computed/cached embeddings from `models/`): **~38.8 seconds**.
 * **Memory Limits**: Operates within **16 GB RAM** via streaming files and pre-filtering candidate subsets before executing vector search.
 * **Determinism**: Random seeds for `numpy` and `random` are fixed to guarantee 100% reproducible rankings.
 
