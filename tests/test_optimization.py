@@ -222,7 +222,7 @@ class TestLLMHypePenalty:
             SkillEntry(name="Machine Learning"),
             SkillEntry(name="Search"),
         ])
-        penalty = _compute_llm_hype_penalty(cand)
+        penalty = _compute_llm_hype_penalty(cand, retrieval=0.8, ranking=0.5, evaluation=0.6, production=0.6)
         assert penalty == 0.0, f"Balanced candidate should have no hype penalty, got {penalty}"
 
     def test_penalty_for_hype_heavy(self):
@@ -240,8 +240,9 @@ class TestLLMHypePenalty:
                 description="Built chatbots using LangChain and OpenAI APIs. Prompt engineering for GPT-4.",
             )],
         )
-        penalty = _compute_llm_hype_penalty(cand)
+        penalty = _compute_llm_hype_penalty(cand, retrieval=0.0, ranking=0.0, evaluation=0.0, production=0.0)
         assert penalty > 0, f"Hype-heavy candidate should have non-zero penalty, got {penalty}"
+
 
 
 # ── TASK 8: Assessment Scores ───────────────────────────────────────
@@ -275,3 +276,61 @@ class TestAssessmentScores:
         score_low = score_skills(cand_low, jd)
         assert score_high > score_low, \
             f"High assessment ({score_high}) should beat low assessment ({score_low})"
+
+
+# ── TASK 1 & 2 & 3: Experience Fit & Consistency & Trap Probability ──
+
+class TestPipelineOptimizationFeatures:
+    """Verify experience fit scoring, consistency checks, and trap probability detection."""
+
+    def test_experience_fit_scoring(self):
+        from src.features.experience_scorer import compute_experience_fit_score
+        assert compute_experience_fit_score(7.0) == 1.0     # Ideal range (5-9)
+        assert compute_experience_fit_score(4.0) == 0.8     # Near ideal
+        assert compute_experience_fit_score(12.0) == 0.8    # Near ideal
+        assert compute_experience_fit_score(16.0) == 0.5    # Far above
+        assert compute_experience_fit_score(2.0) == 0.3     # Under experienced
+
+    def test_profile_consistency_score(self):
+        from src.ingestion.honeypot_filter import _compute_consistency_score
+        # 1. Consistent candidate
+        consistent_cand = _make_candidate(
+            years_of_experience=6.0,
+            current_title="ML Engineer",
+            education=[EducationEntry(degree="B.Tech", field_of_study="CS", start_year=2016, end_year=2020)],
+            career_history=[CareerEntry(company="BigCo", title="ML Engineer", duration_months=72, description="retrieval systems development")]
+        )
+        score_consistent = _compute_consistency_score(consistent_cand)
+        assert score_consistent == 1.0, f"Expected 1.0, got {score_consistent}"
+
+        # 2. Inconsistent candidate (Senior title with < 3 YOE)
+        inconsistent_cand = _make_candidate(
+            years_of_experience=1.5,
+            current_title="Senior Principal Architect",
+            career_history=[CareerEntry(company="A", title="CTO", duration_months=18)]
+        )
+        score_inconsistent = _compute_consistency_score(inconsistent_cand)
+        assert score_inconsistent < 1.0, f"Expected penalty, got {score_inconsistent}"
+
+    def test_trap_probability_detection(self):
+        from src.ingestion.honeypot_filter import compute_trap_probability
+        # 1. Normal candidate should have low trap probability
+        normal_cand = _make_candidate(
+            years_of_experience=6.0,
+            current_title="ML Engineer",
+            career_history=[CareerEntry(company="BigCo", title="ML Engineer", duration_months=72, description="retrieval systems development")]
+        )
+        prob_normal = compute_trap_probability(normal_cand)
+        assert prob_normal < 0.2, f"Normal profile should have low trap probability, got {prob_normal}"
+
+        # 2. Trap candidate (many contradictions, low YOE but senior title, skill stuffing)
+        trap_cand = _make_candidate(
+            years_of_experience=1.0,
+            current_title="CTO",
+            skills=[SkillEntry(name="Photoshop"), SkillEntry(name="Sales"), SkillEntry(name="Accounting"), SkillEntry(name="FAISS"), SkillEntry(name="Milvus")],
+            education=[EducationEntry(degree="B.Tech", field_of_study="CS", start_year=2020, end_year=2018)], # Impossible timeline
+            career_history=[CareerEntry(company="A", title="CTO", duration_months=12)]
+        )
+        prob_trap = compute_trap_probability(trap_cand)
+        assert prob_trap > 0.4, f"Suspicious profile should have high trap probability, got {prob_trap}"
+

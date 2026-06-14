@@ -1,5 +1,5 @@
 """
-Retrieval system experience scorer (TASK 4 — strengthened).
+Retrieval system experience scorer (TASK 4 — strengthened, TASK 6 — career history hardened).
 
 Detects evidence of search/retrieval/RAG/vector-search experience
 in career descriptions, titles, and skills.
@@ -23,52 +23,51 @@ def score_retrieval(candidate: Candidate) -> float:
     Returns:
         Normalized score [0, 1].
     """
-    # Build combined text from all relevant fields
-    parts = []
-
-    # Career descriptions and titles
+    # 1. Career history text
+    career_parts = []
     for career in candidate.career_history:
         if career.description:
-            parts.append(career.description.lower())
+            career_parts.append(career.description.lower())
         if career.title:
-            parts.append(career.title.lower())
+            career_parts.append(career.title.lower())
+    career_text = " ".join(career_parts)
 
-    # Headline and summary
+    # 2. Other profile text (headline, summary, skills)
+    other_parts = []
     if candidate.headline:
-        parts.append(candidate.headline.lower())
+        other_parts.append(candidate.headline.lower())
     if candidate.summary:
-        parts.append(candidate.summary.lower())
-
-    # Skill names
+        other_parts.append(candidate.summary.lower())
+    
     skill_text = " ".join(s.name.lower() for s in candidate.skills if s.name)
-    parts.append(skill_text)
+    other_parts.append(skill_text)
+    other_text = " ".join(other_parts)
 
-    combined = " ".join(parts)
+    # Count matches
+    career_matches = count_keyword_matches(career_text, RETRIEVAL_KEYWORDS)
+    other_matches = count_keyword_matches(other_text, RETRIEVAL_KEYWORDS)
+    total_matches = career_matches + other_matches
 
-    if not combined.strip():
+    if total_matches == 0:
         return 0.0
 
-    matches = count_keyword_matches(combined, RETRIEVAL_KEYWORDS)
-
-    # Graduated scoring — more granular for better discrimination
-    if matches >= 10:
+    # Base score on total matches
+    if total_matches >= 10:
         score = 1.0
-    elif matches >= 8:
+    elif total_matches >= 8:
         score = 0.92
-    elif matches >= 6:
+    elif total_matches >= 6:
         score = 0.82
-    elif matches >= 5:
+    elif total_matches >= 5:
         score = 0.72
-    elif matches >= 4:
+    elif total_matches >= 4:
         score = 0.62
-    elif matches >= 3:
+    elif total_matches >= 3:
         score = 0.50
-    elif matches >= 2:
+    elif total_matches >= 2:
         score = 0.38
-    elif matches >= 1:
-        score = 0.22
     else:
-        score = 0.0
+        score = 0.22
 
     # Bonus for retrieval-related skill names (stronger bonus)
     skill_bonus = 0.0
@@ -78,4 +77,14 @@ def score_retrieval(candidate: Candidate) -> float:
             skill_bonus += 0.08
 
     score = min(1.0, score + min(0.25, skill_bonus))
+
+    # TASK 6 Rule: career evidence matters more.
+    # If 0 matches in career history, penalize heavily (only skills/summary mention it)
+    if career_matches == 0:
+        score *= 0.4
+    else:
+        # Increase confidence when retrieval appears in career history
+        boost = min(0.15, career_matches * 0.03)
+        score = min(1.0, score + boost)
+
     return round(score, 4)

@@ -1,5 +1,5 @@
 """
-Evaluation framework experience scorer (TASK 5 — strengthened).
+Evaluation framework experience scorer (TASK 5 — strengthened, TASK 6 — career history hardened).
 
 Detects evidence of evaluation metrics, A/B testing, and
 experiment framework experience. These signals carry increased
@@ -9,7 +9,6 @@ weight as the JD explicitly requires ranking evaluation expertise.
 from src.ingestion.candidate_parser import Candidate
 from src.utils.constants import EVALUATION_KEYWORDS
 from src.utils.text_utils import count_keyword_matches, canonicalize_skill
-
 
 # Skill names that indicate evaluation expertise
 _EVAL_SKILL_KEYWORDS = {
@@ -25,49 +24,51 @@ def score_evaluation(candidate: Candidate) -> float:
 
     Scans career descriptions, titles, skills, headline, and summary
     for evaluation-domain keywords (NDCG, MAP, MRR, A/B testing, etc.).
-    Increased scoring thresholds to reward genuine evaluation expertise.
 
     Returns:
         Normalized score [0, 1].
     """
-    parts = []
-
+    # 1. Career history text
+    career_parts = []
     for career in candidate.career_history:
         if career.description:
-            parts.append(career.description.lower())
+            career_parts.append(career.description.lower())
         if career.title:
-            parts.append(career.title.lower())
+            career_parts.append(career.title.lower())
+    career_text = " ".join(career_parts)
 
+    # 2. Other profile text (headline, summary, skills)
+    other_parts = []
     if candidate.headline:
-        parts.append(candidate.headline.lower())
+        other_parts.append(candidate.headline.lower())
     if candidate.summary:
-        parts.append(candidate.summary.lower())
-
+        other_parts.append(candidate.summary.lower())
+    
     skill_text = " ".join(s.name.lower() for s in candidate.skills if s.name)
-    parts.append(skill_text)
+    other_parts.append(skill_text)
+    other_text = " ".join(other_parts)
 
-    combined = " ".join(parts)
+    # Count matches
+    career_matches = count_keyword_matches(career_text, EVALUATION_KEYWORDS)
+    other_matches = count_keyword_matches(other_text, EVALUATION_KEYWORDS)
+    total_matches = career_matches + other_matches
 
-    if not combined.strip():
+    if total_matches == 0:
         return 0.0
 
-    matches = count_keyword_matches(combined, EVALUATION_KEYWORDS)
-
-    # Graduated scoring — more responsive to evaluation signals
-    if matches >= 8:
+    # Base score on total matches
+    if total_matches >= 8:
         score = 1.0
-    elif matches >= 6:
+    elif total_matches >= 6:
         score = 0.90
-    elif matches >= 4:
+    elif total_matches >= 4:
         score = 0.78
-    elif matches >= 3:
+    elif total_matches >= 3:
         score = 0.62
-    elif matches >= 2:
+    elif total_matches >= 2:
         score = 0.45
-    elif matches >= 1:
-        score = 0.25
     else:
-        score = 0.0
+        score = 0.25
 
     # Bonus for evaluation-related skill names
     skill_bonus = 0.0
@@ -77,4 +78,14 @@ def score_evaluation(candidate: Candidate) -> float:
             skill_bonus += 0.08
 
     score = min(1.0, score + min(0.20, skill_bonus))
+
+    # TASK 6 Rule: career evidence matters more.
+    # If 0 matches in career history, penalize heavily
+    if career_matches == 0:
+        score *= 0.4
+    else:
+        # Increase confidence when evaluation appears in career history
+        boost = min(0.15, career_matches * 0.03)
+        score = min(1.0, score + boost)
+
     return round(score, 4)

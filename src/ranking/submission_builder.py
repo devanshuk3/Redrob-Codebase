@@ -1,6 +1,6 @@
 """
 Submission builder — produces and validates the final submission.csv.
-Debug CSV builder — comprehensive diagnostics (TASK 13 — enhanced).
+Debug CSV builder — comprehensive diagnostics (TASK 8 — feature contribution debugging).
 """
 
 from typing import Any, Dict, List
@@ -130,7 +130,7 @@ def save_full_scores(
 
 def _identify_top_features(entry: Dict[str, Any]) -> tuple:
     """
-    Identify top positive and negative features for a candidate (TASK 13).
+    Identify top positive and negative features for a candidate.
     Returns (top_positive: str, top_negative: str).
     """
     # Score dimensions to analyze
@@ -140,12 +140,14 @@ def _identify_top_features(entry: Dict[str, Any]) -> tuple:
         ("ranking_score", "Ranking/Recommendation"),
         ("evaluation_score", "Evaluation Frameworks"),
         ("production_score", "Production Experience"),
-        ("experience_score", "Experience Fit"),
+        ("experience_score", "Experience Score"),
+        ("experience_fit_score", "Experience Fit"),
         ("education_score", "Education"),
         ("certification_score", "Certifications"),
         ("behavioral_score", "Behavioral Signals"),
         ("semantic_score", "Semantic Similarity"),
         ("quality_score", "Profile Quality"),
+        ("consistency_score", "Profile Consistency"),
     ]
 
     scored = []
@@ -156,10 +158,13 @@ def _identify_top_features(entry: Dict[str, Any]) -> tuple:
 
     scored.sort(key=lambda x: x[0], reverse=True)
 
-    # Top 3 positive features (score > 0.4)
-    positives = [f"{label} ({val:.2f})" for val, label in scored if val >= 0.4][:3]
-    # Top 3 negative features (score < 0.3)
-    negatives = [f"{label} ({val:.2f})" for val, label in scored if val < 0.3][:3]
+    positives = [f"{label} ({val:.2f})" for val, label in scored if val >= 0.6][:3]
+    negatives = [f"{label} ({val:.2f})" for val, label in scored if val < 0.4][:3]
+
+    # Handle trap probability separately
+    trap_prob = entry.get("trap_probability", 0.0)
+    if trap_prob > 0.3:
+        negatives.append(f"Trap Probability ({trap_prob:.2f})")
 
     top_pos = "; ".join(positives) if positives else "None above threshold"
     top_neg = "; ".join(negatives) if negatives else "None below threshold"
@@ -173,10 +178,10 @@ def build_debug_csv(
     output_path: str = None,
 ):
     """
-    Build a comprehensive debug CSV (TASK 13 — enhanced).
+    Build a comprehensive debug CSV (TASK 8 — feature contribution debugging).
 
-    Contains scores, ranks, all original candidate profile details,
-    and top positive/negative feature analysis for every Top-100 candidate.
+    Contains scores, ranks, contributions, sub-scores, experience-fit,
+    consistency, trap probability, and all original candidate profile details.
     """
     from src.ingestion.candidate_parser import Candidate
 
@@ -218,8 +223,14 @@ def build_debug_csv(
         sal_max = sig.expected_salary_range_inr_lpa.get("max", 0.0)
         salary_str = f"{sal_min}-{sal_max} LPA"
 
-        # Identify top features (TASK 13 — new)
+        # Identify top features
         top_pos, top_neg = _identify_top_features(entry)
+
+        # Contribution scores (TASK 8)
+        semantic_contrib = Config.WEIGHT_SEMANTIC * entry.get("semantic_score", 0.0)
+        struct_contrib = Config.WEIGHT_STRUCTURED * entry.get("structured_score", 0.0)
+        behavioral_contrib = Config.WEIGHT_BEHAVIORAL * entry.get("behavioral_score", 0.0)
+        quality_contrib = Config.WEIGHT_QUALITY * entry.get("quality_score", 0.0)
 
         row = {
             # Final Results
@@ -228,13 +239,19 @@ def build_debug_csv(
             "final_score": round(entry.get("final_score", 0.0), 6),
             "reasoning": entry.get("reasoning", ""),
 
-            # Component Scores (TASK 13 — all included)
+            # Component Scores
             "semantic_score": round(entry.get("semantic_score", 0.0), 6),
             "structured_score": round(entry.get("structured_score", 0.0), 6),
             "behavioral_score": round(entry.get("behavioral_score", 0.0), 6),
             "quality_score": round(entry.get("quality_score", 0.0), 6),
 
-            # Sub-Scores (TASK 13 — all included)
+            # Contribution Scores (TASK 8)
+            "semantic_contribution": round(semantic_contrib, 6),
+            "structured_contribution": round(struct_contrib, 6),
+            "behavioral_contribution": round(behavioral_contrib, 6),
+            "quality_contribution": round(quality_contrib, 6),
+
+            # Sub-Scores & Modifiers
             "skill_score": round(entry.get("skill_score", 0.0), 6),
             "retrieval_score": round(entry.get("retrieval_score", 0.0), 6),
             "ranking_score": round(entry.get("ranking_score", 0.0), 6),
@@ -244,8 +261,15 @@ def build_debug_csv(
             "education_score": round(entry.get("education_score", 0.0), 6),
             "certification_score": round(entry.get("certification_score", 0.0), 6),
             "llm_hype_penalty": round(entry.get("llm_hype_penalty", 0.0), 6),
+            
+            # Additional scores (TASK 8)
+            "experience_fit_score": round(entry.get("experience_fit_score", 1.0), 6),
+            "consistency_score": round(entry.get("consistency_score", 1.0), 6),
+            "trap_probability": round(entry.get("trap_probability", 0.0), 6),
+            "assessment_score": round(entry.get("assessment_score", 0.0), 2),
+            "assessment_modifier": round(entry.get("assessment_modifier", 1.0), 2),
 
-            # Feature Importance (TASK 13 — new)
+            # Feature Importance
             "top_positive_features": top_pos,
             "top_negative_features": top_neg,
 

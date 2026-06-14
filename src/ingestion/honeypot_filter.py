@@ -1,14 +1,15 @@
 """
-Honeypot / synthetic profile detection (TASK 7 — strengthened with consistency checks).
+Honeypot / synthetic profile detection (TASK 2 — consistency, TASK 3 — trap probability).
 
 Produces a quality_score (0–1) per candidate. Low scores indicate
 suspicious profiles that should be filtered out.
 
-New consistency checks:
-  - Headline vs Career mismatch
-  - Summary vs Career mismatch
-  - Education vs Experience mismatch
-  - Skill stuffing (unrelated domain diversity)
+Consistency checks include:
+  - Title vs experience consistency
+  - Claimed vs actual experience consistency
+  - Impossible education timelines
+  - Skill stuffing and unrelated skill domains
+  - Summary vs career content consistency
 """
 
 from typing import Optional
@@ -84,91 +85,152 @@ def _has_relevant_tech_experience(candidate: Candidate) -> bool:
 
 def _compute_consistency_score(candidate: Candidate) -> float:
     """
-    Compute profile consistency score (TASK 7 — new).
+    Compute profile consistency score (TASK 2).
     
     Checks for internal contradictions within a candidate's profile:
-    1. Headline vs Career mismatch
-    2. Summary vs Career mismatch
-    3. Skill stuffing (unrelated domain diversity)
+    1. Title consistency (e.g. Senior title with < 3 years experience)
+    2. Experience consistency (claimed years vs actual summed history duration)
+    3. Education timeline consistency (impossible start/end, bachelors/masters durations)
+    4. Skill consistency (diversity across unrelated domains)
+    5. Summary consistency (claims retrieval but no retrieval work in history)
     
     Returns:
         Score in [0.0, 1.0] where 1.0 = fully consistent.
     """
     penalties = 0.0
-    max_penalty = 3.0
-
-    # ── 1. Headline vs Career mismatch ──────────────────────────────
-    headline = (candidate.headline or "").lower()
-    if headline and candidate.career_history:
-        # Check if headline domain matches any career description
-        headline_domains = _extract_domain_signals(headline)
-        career_text = " ".join(
-            (c.description or "").lower() + " " + (c.title or "").lower()
-            for c in candidate.career_history
-        )
-        career_domains = _extract_domain_signals(career_text)
-
-        if headline_domains and career_domains:
-            overlap = headline_domains & career_domains
-            if not overlap and len(headline_domains) > 0:
-                penalties += 0.8
-
-    # ── 2. Summary vs Career mismatch ───────────────────────────────
-    summary = (candidate.summary or "").lower()
-    if summary and candidate.career_history:
-        summary_domains = _extract_domain_signals(summary)
-        if not career_domains:
-            career_text = " ".join(
-                (c.description or "").lower() for c in candidate.career_history
-            )
-            career_domains = _extract_domain_signals(career_text)
+    
+    # ── 1. Title Consistency ──────────────────────────────
+    senior_keywords = {"senior", "lead", "staff", "principal", "cto", "architect", "director", "manager", "vp", "chief", "head"}
+    titles = [c.title.lower() for c in candidate.career_history if c.title]
+    if candidate.current_title:
+        titles.append(candidate.current_title.lower())
         
-        if summary_domains and career_domains:
-            overlap = summary_domains & career_domains
-            if not overlap and len(summary_domains) > 0:
-                penalties += 0.7
+    has_senior_title = any(any(skw in t for skw in senior_keywords) for t in titles)
+    if has_senior_title and candidate.years_of_experience < 3.0:
+        penalties += 0.3
 
-    # ── 3. Skill stuffing (unrelated domain diversity) ──────────────
+    # ── 2. Experience Consistency ─────────────────────────
+    claimed_yoe = candidate.years_of_experience
+    total_months = sum(c.duration_months for c in candidate.career_history if c.duration_months > 0)
+    actual_yoe = total_months / 12.0
+    
+    if len(candidate.career_history) > 0:
+        if abs(claimed_yoe - actual_yoe) > 3.0:
+            penalties += 0.25
+
+    # ── 3. Education Consistency ──────────────────────────
+    edu_timeline_error = False
+    for edu in candidate.education:
+        if edu.start_year and edu.end_year:
+            if edu.start_year > edu.end_year:
+                edu_timeline_error = True
+            duration = edu.end_year - edu.start_year
+            deg = edu.degree.lower()
+            if any(b in deg for b in ["bachelor", "b.tech", "b.e", "b.sc", "b.s"]):
+                if duration <= 1 or duration > 7:
+                    edu_timeline_error = True
+            elif any(m in deg for m in ["master", "m.tech", "m.e", "m.sc", "m.s"]):
+                if duration < 1 or duration > 4:
+                    edu_timeline_error = True
+                    
+    if edu_timeline_error:
+        penalties += 0.25
+
+    # ── 4. Skill Consistency ──────────────────────────────
     if candidate.skills:
         skill_names = [s.name.lower() for s in candidate.skills]
-        matched_unrelated_domains = set()
-        for domain, keywords in UNRELATED_SKILL_DOMAINS.items():
-            for skill in skill_names:
-                if any(kw in skill for kw in keywords):
-                    matched_unrelated_domains.add(domain)
-                    break
-        # If 3+ unrelated domains present in skill list → suspicious
-        if len(matched_unrelated_domains) >= 3:
-            penalties += 1.0
-        elif len(matched_unrelated_domains) >= 2:
-            penalties += 0.5
+        domains_matched = set()
+        domain_keywords = {
+            "design": ["photoshop", "illustrator", "figma", "sketch", "indesign", "graphic design", "ui design", "ux design"],
+            "sales": ["sales", "cold calling", "lead generation", "crm", "salesforce", "business development", "marketing"],
+            "accounting": ["accounting", "bookkeeping", "tax", "audit", "tally", "quickbooks", "finance"],
+            "technical": ["faiss", "milvus", "rag", "retrieval", "elasticsearch", "opensearch", "python", "pytorch", "tensorflow", "deep learning", "machine learning"]
+        }
+        for dom, kws in domain_keywords.items():
+            if any(any(kw in s for kw in kws) for s in skill_names):
+                domains_matched.add(dom)
+        
+        if len(domains_matched) >= 3:
+            penalties += 0.3
 
-    consistency = max(0.0, 1.0 - (penalties / max_penalty))
+    # ── 5. Summary Consistency ────────────────────────────
+    summary = (candidate.summary or "").lower()
+    has_retrieval_summary = any(kw in summary for kw in ["retrieval", "search", "rag", "vector search", "milvus", "faiss"])
+    
+    career_desc = " ".join([c.description.lower() for c in candidate.career_history if c.description] + 
+                           [c.title.lower() for c in candidate.career_history if c.title])
+    has_retrieval_career = any(kw in career_desc for kw in ["retrieval", "search", "rag", "vector search", "milvus", "faiss", "elasticsearch", "hybrid search"])
+    
+    if has_retrieval_summary and not has_retrieval_career:
+        penalties += 0.25
+
+    consistency = max(0.0, 1.0 - penalties)
     return round(consistency, 4)
 
 
-def _extract_domain_signals(text: str) -> set:
-    """Extract domain signal categories from text."""
-    domains = set()
-    domain_map = {
-        "ml_ai": ["machine learning", "deep learning", "neural", "model training",
-                   "nlp", "natural language", "embeddings", "transformers", "ai"],
-        "search_retrieval": ["search", "retrieval", "ranking", "recommendation",
-                            "matching", "indexing", "vector", "embedding"],
-        "engineering": ["software", "engineer", "developer", "programming",
-                       "backend", "frontend", "fullstack", "devops"],
-        "data": ["data science", "data analysis", "analytics", "data engineer",
-                "data pipeline", "etl", "warehouse"],
-        "management": ["manager", "director", "head of", "vp", "chief",
-                      "lead", "management"],
-        "marketing": ["marketing", "sales", "business development", "advertising",
-                     "seo", "content"],
-        "hr": ["recruiter", "recruitment", "talent", "hr", "human resources"],
-    }
-    for domain, keywords in domain_map.items():
-        if any(kw in text for kw in keywords):
-            domains.add(domain)
-    return domains
+def compute_trap_probability(candidate: Candidate) -> float:
+    """
+    Compute trap probability for candidate (TASK 3).
+    Based on:
+    - low consistency score
+    - skill stuffing
+    - impossible timelines
+    - title inflation
+    - career / summary contradictions
+    """
+    consistency = _compute_consistency_score(candidate)
+    
+    prob = 0.0
+    
+    # 1. Low consistency score
+    if consistency < 0.6:
+        prob += 0.4
+    elif consistency < 0.8:
+        prob += 0.2
+        
+    # 2. Skill stuffing
+    num_skills = len(candidate.skills)
+    if num_skills > 50:
+        prob += 0.3
+    elif num_skills > 40:
+        prob += 0.15
+        
+    # 3. Impossible timelines (education)
+    edu_timeline_error = False
+    for edu in candidate.education:
+        if edu.start_year and edu.end_year:
+            if edu.start_year > edu.end_year:
+                edu_timeline_error = True
+            duration = edu.end_year - edu.start_year
+            deg = edu.degree.lower()
+            if any(b in deg for b in ["bachelor", "b.tech", "b.e", "b.sc", "b.s"]):
+                if duration <= 1 or duration > 7:
+                    edu_timeline_error = True
+            elif any(m in deg for m in ["master", "m.tech", "m.e", "m.sc", "m.s"]):
+                if duration < 1 or duration > 4:
+                    edu_timeline_error = True
+    if edu_timeline_error:
+        prob += 0.25
+        
+    # 4. Title inflation
+    senior_keywords = {"senior", "lead", "staff", "principal", "cto", "architect", "director", "manager", "vp", "chief", "head"}
+    titles = [c.title.lower() for c in candidate.career_history if c.title]
+    if candidate.current_title:
+        titles.append(candidate.current_title.lower())
+    has_senior_title = any(any(skw in t for skw in senior_keywords) for t in titles)
+    if has_senior_title and candidate.years_of_experience < 3.0:
+        prob += 0.25
+        
+    # 5. Career/Summary contradictions
+    summary = (candidate.summary or "").lower()
+    has_retrieval_summary = any(kw in summary for kw in ["retrieval", "search", "rag", "vector search", "milvus", "faiss"])
+    career_desc = " ".join([c.description.lower() for c in candidate.career_history if c.description] + 
+                           [c.title.lower() for c in candidate.career_history if c.title])
+    has_retrieval_career = any(kw in career_desc for kw in ["retrieval", "search", "rag", "vector search", "milvus", "faiss", "elasticsearch", "hybrid search"])
+    if has_retrieval_summary and not has_retrieval_career:
+        prob += 0.2
+
+    return round(min(1.0, max(0.0, prob)), 4)
 
 
 def compute_quality_score(candidate: Candidate) -> float:
@@ -182,10 +244,7 @@ def compute_quality_score(candidate: Candidate) -> float:
     3. Experience timeline consistency
     4. Skill explosion
     5. Salary vs experience consistency
-    6. Title progression sanity
-    7. Experience-skill mismatch
-    8. Career duration consistency
-    9. Profile consistency (TASK 7 — new)
+    6. Profile consistency (using new _compute_consistency_score)
     """
     if _check_non_tech_role(candidate):
         return 0.0
@@ -194,17 +253,14 @@ def compute_quality_score(candidate: Candidate) -> float:
         return 0.0
 
     penalties = 0.0
-    max_penalty = 10.0  # increased to accommodate new checks
+    max_penalty = 4.0
 
     # ── 1. Experience Timeline Inconsistency ─────────────────────────
-    # If graduation was recent but claimed experience is huge
     earliest_grad = _earliest_graduation_year(candidate)
     if earliest_grad:
         years_since_grad = years_since_graduation(earliest_grad)
         claimed_exp = candidate.years_of_experience
-        # Allow some slack (part-time, internships)
         if claimed_exp > years_since_grad + 2:
-            # Impossible timeline
             penalties += 1.0
         elif claimed_exp > years_since_grad + 1:
             penalties += 0.5
@@ -216,13 +272,6 @@ def compute_quality_score(candidate: Candidate) -> float:
     elif num_skills > 40:
         penalties += 0.5
 
-    # Check for unrealistic skill diversity (many unrelated domains)
-    if num_skills > 0:
-        skill_names = [s.name.lower() for s in candidate.skills]
-        unique_domains = _count_skill_domains(skill_names)
-        if unique_domains > 10 and num_skills > 30:
-            penalties += 0.5
-
     # ── 3. Salary Inconsistency ──────────────────────────────────────
     salary_range = candidate.redrob_signals.expected_salary_range_inr_lpa
     max_salary = salary_range.get("max", 0)
@@ -230,32 +279,7 @@ def compute_quality_score(candidate: Candidate) -> float:
             and max_salary > Config.MAX_SALARY_FOR_LOW_EXP):
         penalties += 0.75
 
-    # ── 4. Title Progression Problems ────────────────────────────────
-    if len(candidate.career_history) >= 2:
-        title_issue = _check_title_progression(candidate)
-        penalties += title_issue
-
-    # ── 5. Experience-Skill Mismatch ─────────────────────────────────
-    # Very short career but extremely large skill inventory
-    if candidate.years_of_experience < 1 and num_skills > 20:
-        penalties += 0.75
-    elif candidate.years_of_experience < 2 and num_skills > 35:
-        penalties += 0.5
-
-    # ── 6. Career Duration Consistency ───────────────────────────────
-    total_career_months = sum(
-        c.duration_months for c in candidate.career_history
-        if c.duration_months > 0
-    )
-    total_career_years = total_career_months / 12.0
-    claimed = candidate.years_of_experience
-    if claimed > 0 and total_career_years > 0:
-        ratio = total_career_years / claimed
-        # If summed durations are way off from claimed experience
-        if ratio > 2.0 or ratio < 0.3:
-            penalties += 0.5
-
-    # ── 7. Only Consulting Companies (JD Exclusions) ──────────────────
+    # ── 4. Only Consulting Companies (JD Exclusions) ──────────────────
     if candidate.career_history:
         companies = [c.company.lower() for c in candidate.career_history if c.company]
         if companies:
@@ -267,39 +291,11 @@ def compute_quality_score(candidate: Candidate) -> float:
             if only_consulting:
                 penalties += 1.0
 
-    # ── 8. Title-Chaser / Frequent Job Hopper ─────────────────────────
-    if len(candidate.career_history) >= 3:
-        companies_seen = set()
-        stints = []
-        for c in candidate.career_history:
-            if c.company and c.duration_months > 0:
-                companies_seen.add(c.company.lower())
-                stints.append(c.duration_months)
-        if len(companies_seen) >= 3 and stints:
-            avg_months = sum(stints) / len(stints)
-            if avg_months < 18.0:
-                penalties += 0.5
-
-    # ── 9. Computer Vision/Speech/Robotics without NLP/IR ─────────────
-    if num_skills > 0:
-        skill_names = [s.name.lower() for s in candidate.skills]
-        cv_keywords = {"computer vision", "opencv", "speech recognition", "robotics", "speech", "audio", "image processing", "cnn", "yolo", "object detection", "image segmentation"}
-        nlp_keywords = {"nlp", "natural language processing", "llm", "rag", "embeddings", "retrieval", "search", "ranking", "recommendation", "recommender", "information retrieval"}
-        
-        has_cv = any(any(kw in s for kw in cv_keywords) for s in skill_names)
-        has_nlp = any(any(kw in s for kw in nlp_keywords) for s in skill_names)
-        
-        if has_cv and not has_nlp:
-            penalties += 0.75
-
-    # ── 10. Profile Consistency (TASK 7 — new) ───────────────────────
+    safety_factor = max(0.0, 1.0 - (penalties / max_penalty))
     consistency = _compute_consistency_score(candidate)
-    # Convert consistency to penalty: low consistency → high penalty
-    consistency_penalty = (1.0 - consistency) * 1.5
-    penalties += consistency_penalty
 
-    # ── Compute final score ──────────────────────────────────────────
-    quality = max(0.0, 1.0 - (penalties / max_penalty))
+    # Blend consistency and safety factor into quality score
+    quality = 0.60 * consistency + 0.40 * safety_factor
     return round(quality, 4)
 
 
@@ -310,62 +306,3 @@ def _earliest_graduation_year(candidate: Candidate) -> Optional[int]:
         if edu.end_year and isinstance(edu.end_year, (int, float)):
             years.append(int(edu.end_year))
     return min(years) if years else None
-
-
-def _count_skill_domains(skill_names: list) -> int:
-    """Rough count of distinct skill domains."""
-    domains = {
-        "web": ["react", "angular", "vue", "html", "css", "javascript", "typescript", "django", "flask", "node"],
-        "data": ["pandas", "numpy", "sql", "tableau", "power bi", "excel", "data analysis"],
-        "ml": ["machine learning", "deep learning", "tensorflow", "pytorch", "keras", "scikit"],
-        "devops": ["docker", "kubernetes", "aws", "azure", "gcp", "ci/cd", "terraform"],
-        "mobile": ["android", "ios", "flutter", "react native", "swift", "kotlin"],
-        "systems": ["c++", "c", "rust", "go", "systems programming", "linux"],
-        "finance": ["accounting", "finance", "trading", "banking"],
-        "marketing": ["seo", "marketing", "content", "advertising"],
-        "design": ["figma", "photoshop", "ui/ux", "design"],
-        "security": ["cybersecurity", "penetration", "security", "encryption"],
-        "database": ["mongodb", "postgresql", "mysql", "redis", "cassandra"],
-        "nlp": ["nlp", "llm", "transformers", "bert", "gpt", "embeddings"],
-    }
-    matched = set()
-    for skill in skill_names:
-        for domain, keywords in domains.items():
-            if any(kw in skill for kw in keywords):
-                matched.add(domain)
-    return len(matched)
-
-
-def _check_title_progression(candidate: Candidate) -> float:
-    """Check for suspicious title progression patterns."""
-    SENIOR_TITLES = {"cto", "ceo", "vp", "vice president", "director", "head", "chief", "principal", "staff"}
-    JUNIOR_TITLES = {"intern", "trainee", "junior", "fresher", "entry level", "associate"}
-
-    titles = [c.title.lower() for c in candidate.career_history if c.title]
-    if len(titles) < 2:
-        return 0.0
-
-    penalty = 0.0
-
-    # Check for senior → junior regression (suspicious)
-    for i in range(len(titles) - 1):
-        current = titles[i]
-        next_title = titles[i + 1]
-        is_current_senior = any(t in current for t in SENIOR_TITLES)
-        is_next_junior = any(t in next_title for t in JUNIOR_TITLES)
-
-        if is_current_senior and is_next_junior:
-            penalty += 0.5
-
-    # Check for junior → C-suite in < 2 years
-    if len(candidate.career_history) >= 2:
-        first = candidate.career_history[-1]  # earliest
-        last = candidate.career_history[0]    # most recent
-        first_junior = any(t in first.title.lower() for t in JUNIOR_TITLES)
-        last_senior = any(t in last.title.lower() for t in SENIOR_TITLES)
-        if first_junior and last_senior:
-            total_months = sum(c.duration_months for c in candidate.career_history)
-            if total_months < 24:
-                penalty += 0.75
-
-    return min(penalty, 1.0)

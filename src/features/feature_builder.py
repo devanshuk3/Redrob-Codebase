@@ -1,6 +1,6 @@
 """
 Feature builder — orchestrates all sub-scorers and produces
-the combined structured score (TASK 3 — LLM hype penalty, TASK 11 — rebalanced).
+the combined structured score (TASK 4 — LLM hype penalty audit, TASK 7 — assessment scores).
 
 Structured sub-scores:
   skill_score, retrieval_score, ranking_score, evaluation_score,
@@ -8,6 +8,9 @@ Structured sub-scores:
 
 Additional modifiers:
   llm_hype_penalty — penalizes LLM-only profiles without real ML depth
+  experience_fit_score — penalizes candidates outside target range
+  consistency_score — consistency of profile
+  trap_probability — probability of synthetic/trap profile
 """
 
 import math
@@ -16,7 +19,7 @@ from typing import Dict, Any
 from src.ingestion.candidate_parser import Candidate
 from src.features.jd_feature_mapper import JDFeatures
 from src.features.skill_extractor import score_skills
-from src.features.experience_scorer import score_experience
+from src.features.experience_scorer import score_experience, compute_experience_fit_score
 from src.features.education_scorer import score_education
 from src.features.certification_scorer import score_certifications
 from src.features.career_analyzer import score_career
@@ -25,14 +28,21 @@ from src.features.retrieval_scorer import score_retrieval
 from src.features.ranking_scorer import score_ranking
 from src.features.evaluation_scorer import score_evaluation
 from src.features.production_scorer import score_production
+from src.ingestion.honeypot_filter import compute_trap_probability, _compute_consistency_score as compute_consistency_score
 from src.utils.config import Config
-from src.utils.constants import LLM_HYPE_KEYWORDS, REAL_ML_DEPTH_KEYWORDS
+from src.utils.constants import LLM_HYPE_KEYWORDS
 from src.utils.text_utils import count_keyword_matches
 
 
-def _compute_llm_hype_penalty(candidate: Candidate) -> float:
+def _compute_llm_hype_penalty(
+    candidate: Candidate,
+    retrieval: float,
+    ranking: float,
+    evaluation: float,
+    production: float,
+) -> float:
     """
-    Compute LLM-hype penalty (TASK 3).
+    Compute LLM-hype penalty (TASK 4).
 
     The JD explicitly warns: candidates whose AI experience consists
     mostly of recent LangChain/OpenAI projects should be ranked lower.
@@ -63,24 +73,23 @@ def _compute_llm_hype_penalty(candidate: Candidate) -> float:
         return 0.0
 
     hype_hits = count_keyword_matches(combined, LLM_HYPE_KEYWORDS)
-    depth_hits = count_keyword_matches(combined, REAL_ML_DEPTH_KEYWORDS)
-
-    # Only penalize when hype significantly outweighs depth
     if hype_hits <= 2:
         return 0.0  # minimal hype mention is fine
 
-    # Ratio: if hype mentions >> depth mentions, apply penalty
-    if depth_hits >= hype_hits:
+    # Weak depth defined by low domain sub-scores
+    domain_depth = retrieval + ranking + evaluation + production
+    if domain_depth >= 1.2:
         return 0.0  # they have real depth — no penalty
 
-    # Scale penalty by how much hype outweighs depth
-    hype_ratio = hype_hits / max(1, depth_hits)
-    if hype_ratio < 2.0:
-        return 0.0  # acceptable balance
+    # Graduated penalty: less domain depth -> higher penalty
+    # If domain_depth = 0.0 -> penalty is max (0.12)
+    # If domain_depth = 1.2 -> penalty is 0.0
+    scale = (1.2 - domain_depth) / 1.2
+    penalty = scale * Config.LLM_HYPE_PENALTY_MAX
 
-    # Graduated penalty: ratio 2.0→4.0+ maps to 0.03→max
-    raw_penalty = min(1.0, (hype_ratio - 2.0) / 3.0)
-    penalty = raw_penalty * Config.LLM_HYPE_PENALTY_MAX
+    # Scale with number of hype hits (max reached at 6+ hits)
+    hype_factor = min(1.0, hype_hits / 6.0)
+    penalty *= hype_factor
 
     return round(penalty, 4)
 
@@ -99,9 +108,13 @@ def build_structured_features(
         - behavioral_score (separate from structured)
         - structured_score (weighted combination of sub-scores)
         - llm_hype_penalty (for debugging and transparency)
+        - experience_fit_score
+        - consistency_score
+        - trap_probability
+        - assessment_score
+        - assessment_modifier
     """
     # ── Compute individual sub-scores ────────────────────────────────
-    skill = score_skills(candidate, jd_features)
     retrieval = score_retrieval(candidate)
     ranking = score_ranking(candidate)
     evaluation = score_evaluation(candidate)
@@ -112,11 +125,57 @@ def build_structured_features(
     career = score_career(candidate, jd_features)
     behavioral = score_behavioral(candidate)
 
-    # ── Compute LLM hype penalty (TASK 3) ────────────────────────────
-    hype_penalty = _compute_llm_hype_penalty(candidate)
+    # ── Skill Assessment Modifier & Score (TASK 7) ───────────────────
+    scores = candidate.redrob_signals.skill_assessment_scores or {}
+    if not scores:
+        assessment_score = 0.0
+        assessment_modifier = 1.0
+    else:
+        # Find scores matching must-have or preferred skills from JD
+        from src.utils.text_utils import canonicalize_skill
+        jd_skills = {canonicalize_skill(s) for s in jd_features.all_skills()}
+        relevant_scores = []
+        for skill_name, val in scores.items():
+            if canonicalize_skill(skill_name) in jd_skills:
+                try:
+                    relevant_scores.append(float(val))
+                except (ValueError, TypeError):
+                    continue
+        if not relevant_scores:
+            for val in scores.values():
+                try:
+                    relevant_scores.append(float(val))
+                except (ValueError, TypeError):
+                    continue
+        if not relevant_scores:
+            assessment_score = 0.0
+            assessment_modifier = 1.0
+        else:
+            assessment_score = max(relevant_scores)
+            if assessment_score >= 80:
+                assessment_modifier = 1.15
+            elif assessment_score >= 60:
+                assessment_modifier = 1.0
+            elif assessment_score >= 40:
+                assessment_modifier = 0.85
+            else:
+                assessment_modifier = 0.70
+
+    # Retrieve skill score and apply assessment_modifier
+    skill = score_skills(candidate, jd_features)
+    skill = skill * assessment_modifier
+
+    # ── Experience Fit Score (TASK 1) ────────────────────────────────
+    experience_fit = compute_experience_fit_score(candidate.years_of_experience)
+
+    # ── Consistency & Trap Probability (TASK 2 & 3) ──────────────────
+    consistency = compute_consistency_score(candidate)
+    trap_prob = compute_trap_probability(candidate)
+
+    # ── Compute LLM hype penalty (TASK 4) ────────────────────────────
+    hype_penalty = _compute_llm_hype_penalty(candidate, retrieval, ranking, evaluation, production)
 
     # ── Compute structured score (weighted combination) ──────────────
-    # These weights correspond to Config.STRUCT_WEIGHT_* values
     structured_score = (
         Config.STRUCT_WEIGHT_SKILL * skill
         + Config.STRUCT_WEIGHT_RETRIEVAL * retrieval
@@ -159,4 +218,9 @@ def build_structured_features(
         "behavioral_score": round(behavioral, 4),
         "structured_score": round(structured_score, 4),
         "llm_hype_penalty": round(hype_penalty, 4),
+        "experience_fit_score": round(experience_fit, 4),
+        "consistency_score": round(consistency, 4),
+        "trap_probability": round(trap_prob, 4),
+        "assessment_score": round(assessment_score, 2),
+        "assessment_modifier": round(assessment_modifier, 2),
     }

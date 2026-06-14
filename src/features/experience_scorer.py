@@ -60,3 +60,26 @@ def score_experience(candidate: Candidate, jd_features: JDFeatures) -> float:
     # ── Combine ──────────────────────────────────────────────────────
     score = 0.40 * years_score + 0.40 * role_score + 0.20 * recency_score
     return round(min(1.0, score), 4)
+
+
+def compute_experience_fit_score(yoe: float) -> float:
+    """
+    Compute experience fit score.
+    Targets ~5-9 years experience (full score).
+    Small penalty below/above range.
+    3-4 years -> moderate penalty (0.8)
+    10-14 years -> moderate penalty (0.8)
+    15+ years -> stronger penalty (0.5)
+    Under 3 years -> strongest penalty (0.3)
+    """
+    if 5.0 <= yoe <= 9.0:
+        return 1.0
+    elif 3.0 <= yoe < 5.0:
+        return 0.8
+    elif 10.0 <= yoe <= 14.0:
+        return 0.8
+    elif yoe >= 15.0:
+        return 0.5
+    else:
+        return 0.3
+

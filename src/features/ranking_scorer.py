@@ -1,5 +1,5 @@
 """
-Ranking/recommendation system experience scorer (TASK 4 — strengthened).
+Ranking/recommendation system experience scorer (TASK 4 — strengthened, TASK 6 — career history hardened).
 
 Detects evidence of ranking, recommendation, matching, and
 learning-to-rank experience. These carry more weight than generic AI.
@@ -20,46 +20,49 @@ def score_ranking(candidate: Candidate) -> float:
     Returns:
         Normalized score [0, 1].
     """
-    parts = []
-
+    # 1. Career history text
+    career_parts = []
     for career in candidate.career_history:
         if career.description:
-            parts.append(career.description.lower())
+            career_parts.append(career.description.lower())
         if career.title:
-            parts.append(career.title.lower())
+            career_parts.append(career.title.lower())
+    career_text = " ".join(career_parts)
 
+    # 2. Other profile text (headline, summary, skills)
+    other_parts = []
     if candidate.headline:
-        parts.append(candidate.headline.lower())
+        other_parts.append(candidate.headline.lower())
     if candidate.summary:
-        parts.append(candidate.summary.lower())
-
+        other_parts.append(candidate.summary.lower())
+    
     skill_text = " ".join(s.name.lower() for s in candidate.skills if s.name)
-    parts.append(skill_text)
+    other_parts.append(skill_text)
+    other_text = " ".join(other_parts)
 
-    combined = " ".join(parts)
+    # Count matches
+    career_matches = count_keyword_matches(career_text, RANKING_KEYWORDS)
+    other_matches = count_keyword_matches(other_text, RANKING_KEYWORDS)
+    total_matches = career_matches + other_matches
 
-    if not combined.strip():
+    if total_matches == 0:
         return 0.0
 
-    matches = count_keyword_matches(combined, RANKING_KEYWORDS)
-
-    # Graduated scoring with better granularity
-    if matches >= 9:
+    # Base score on total matches
+    if total_matches >= 9:
         score = 1.0
-    elif matches >= 7:
+    elif total_matches >= 7:
         score = 0.90
-    elif matches >= 5:
+    elif total_matches >= 5:
         score = 0.78
-    elif matches >= 4:
+    elif total_matches >= 4:
         score = 0.65
-    elif matches >= 3:
+    elif total_matches >= 3:
         score = 0.52
-    elif matches >= 2:
+    elif total_matches >= 2:
         score = 0.38
-    elif matches >= 1:
-        score = 0.22
     else:
-        score = 0.0
+        score = 0.22
 
     # Bonus for ranking-related skill names
     skill_bonus = 0.0
@@ -69,4 +72,14 @@ def score_ranking(candidate: Candidate) -> float:
             skill_bonus += 0.08
 
     score = min(1.0, score + min(0.25, skill_bonus))
+
+    # TASK 6 Rule: career evidence matters more.
+    # If 0 matches in career history, penalize heavily
+    if career_matches == 0:
+        score *= 0.4
+    else:
+        # Increase confidence when ranking appears in career history
+        boost = min(0.15, career_matches * 0.03)
+        score = min(1.0, score + boost)
+
     return round(score, 4)
