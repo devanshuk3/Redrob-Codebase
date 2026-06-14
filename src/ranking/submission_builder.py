@@ -1,5 +1,6 @@
 """
 Submission builder — produces and validates the final submission.csv.
+Debug CSV builder — comprehensive diagnostics (TASK 13 — enhanced).
 """
 
 from typing import Any, Dict, List
@@ -127,14 +128,55 @@ def save_full_scores(
     logger.info(f"Full scores saved: {output_path} ({len(df)} rows)")
 
 
+def _identify_top_features(entry: Dict[str, Any]) -> tuple:
+    """
+    Identify top positive and negative features for a candidate (TASK 13).
+    Returns (top_positive: str, top_negative: str).
+    """
+    # Score dimensions to analyze
+    score_keys = [
+        ("skill_score", "Skill Match"),
+        ("retrieval_score", "Retrieval/Search"),
+        ("ranking_score", "Ranking/Recommendation"),
+        ("evaluation_score", "Evaluation Frameworks"),
+        ("production_score", "Production Experience"),
+        ("experience_score", "Experience Fit"),
+        ("education_score", "Education"),
+        ("certification_score", "Certifications"),
+        ("behavioral_score", "Behavioral Signals"),
+        ("semantic_score", "Semantic Similarity"),
+        ("quality_score", "Profile Quality"),
+    ]
+
+    scored = []
+    for key, label in score_keys:
+        val = entry.get(key, 0.0)
+        if isinstance(val, (int, float)):
+            scored.append((val, label))
+
+    scored.sort(key=lambda x: x[0], reverse=True)
+
+    # Top 3 positive features (score > 0.4)
+    positives = [f"{label} ({val:.2f})" for val, label in scored if val >= 0.4][:3]
+    # Top 3 negative features (score < 0.3)
+    negatives = [f"{label} ({val:.2f})" for val, label in scored if val < 0.3][:3]
+
+    top_pos = "; ".join(positives) if positives else "None above threshold"
+    top_neg = "; ".join(negatives) if negatives else "None below threshold"
+
+    return top_pos, top_neg
+
+
 def build_debug_csv(
     ranked_candidates: List[Dict[str, Any]],
     candidate_map: Dict[str, Any],
     output_path: str = None,
 ):
     """
-    Build a comprehensive debug CSV containing scores, ranks,
-    and all original candidate profile details to verify ranking logic.
+    Build a comprehensive debug CSV (TASK 13 — enhanced).
+
+    Contains scores, ranks, all original candidate profile details,
+    and top positive/negative feature analysis for every Top-100 candidate.
     """
     from src.ingestion.candidate_parser import Candidate
 
@@ -176,6 +218,9 @@ def build_debug_csv(
         sal_max = sig.expected_salary_range_inr_lpa.get("max", 0.0)
         salary_str = f"{sal_min}-{sal_max} LPA"
 
+        # Identify top features (TASK 13 — new)
+        top_pos, top_neg = _identify_top_features(entry)
+
         row = {
             # Final Results
             "rank": entry.get("rank"),
@@ -183,17 +228,26 @@ def build_debug_csv(
             "final_score": round(entry.get("final_score", 0.0), 6),
             "reasoning": entry.get("reasoning", ""),
 
-            # Component Scores
+            # Component Scores (TASK 13 — all included)
             "semantic_score": round(entry.get("semantic_score", 0.0), 6),
             "structured_score": round(entry.get("structured_score", 0.0), 6),
             "behavioral_score": round(entry.get("behavioral_score", 0.0), 6),
             "quality_score": round(entry.get("quality_score", 0.0), 6),
 
-            # Sub-Scores (if available)
-            "skills_score": round(entry.get("skills_score", 0.0), 6),
+            # Sub-Scores (TASK 13 — all included)
+            "skill_score": round(entry.get("skill_score", 0.0), 6),
+            "retrieval_score": round(entry.get("retrieval_score", 0.0), 6),
+            "ranking_score": round(entry.get("ranking_score", 0.0), 6),
+            "evaluation_score": round(entry.get("evaluation_score", 0.0), 6),
+            "production_score": round(entry.get("production_score", 0.0), 6),
             "experience_score": round(entry.get("experience_score", 0.0), 6),
             "education_score": round(entry.get("education_score", 0.0), 6),
             "certification_score": round(entry.get("certification_score", 0.0), 6),
+            "llm_hype_penalty": round(entry.get("llm_hype_penalty", 0.0), 6),
+
+            # Feature Importance (TASK 13 — new)
+            "top_positive_features": top_pos,
+            "top_negative_features": top_neg,
 
             # Original Profile Details
             "anonymized_name": cand.anonymized_name,

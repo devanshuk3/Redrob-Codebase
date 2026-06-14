@@ -1,12 +1,14 @@
 """
-Retrieval system experience scorer (CHANGE 2).
+Retrieval system experience scorer (TASK 4 — strengthened).
 
 Detects evidence of search/retrieval/RAG/vector-search experience
 in career descriptions, titles, and skills.
+
+Retrieval/search/vector-DB skills carry MORE weight than generic AI keywords.
 """
 
 from src.ingestion.candidate_parser import Candidate
-from src.utils.constants import RETRIEVAL_KEYWORDS
+from src.utils.constants import RETRIEVAL_KEYWORDS, RETRIEVAL_SKILL_KEYWORDS
 from src.utils.text_utils import count_keyword_matches, canonicalize_skill
 
 
@@ -15,7 +17,8 @@ def score_retrieval(candidate: Candidate) -> float:
     Score retrieval/search system experience.
 
     Scans career descriptions, titles, skills, headline, and summary
-    for retrieval-domain keywords.
+    for retrieval-domain keywords. Uses graduated scoring with
+    stronger ceiling and skill-name bonuses.
 
     Returns:
         Normalized score [0, 1].
@@ -47,28 +50,32 @@ def score_retrieval(candidate: Candidate) -> float:
 
     matches = count_keyword_matches(combined, RETRIEVAL_KEYWORDS)
 
-    # Normalize: hitting 5+ retrieval keywords is very strong
-    if matches >= 8:
+    # Graduated scoring — more granular for better discrimination
+    if matches >= 10:
         score = 1.0
+    elif matches >= 8:
+        score = 0.92
+    elif matches >= 6:
+        score = 0.82
     elif matches >= 5:
-        score = 0.85
+        score = 0.72
+    elif matches >= 4:
+        score = 0.62
     elif matches >= 3:
-        score = 0.65
+        score = 0.50
     elif matches >= 2:
-        score = 0.45
+        score = 0.38
     elif matches >= 1:
-        score = 0.25
+        score = 0.22
     else:
         score = 0.0
 
-    # Bonus for retrieval-related skill names
-    retrieval_skill_keywords = {"retrieval", "search", "rag", "vector", "elasticsearch",
-                                "milvus", "pinecone", "weaviate", "faiss", "solr", "lucene"}
+    # Bonus for retrieval-related skill names (stronger bonus)
     skill_bonus = 0.0
     for s in candidate.skills:
         canon = canonicalize_skill(s.name)
-        if any(kw in canon for kw in retrieval_skill_keywords):
-            skill_bonus += 0.1
+        if any(kw in canon for kw in RETRIEVAL_SKILL_KEYWORDS):
+            skill_bonus += 0.08
 
-    score = min(1.0, score + min(0.2, skill_bonus))
+    score = min(1.0, score + min(0.25, skill_bonus))
     return round(score, 4)

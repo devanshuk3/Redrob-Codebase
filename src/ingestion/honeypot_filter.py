@@ -1,14 +1,21 @@
 """
-Honeypot / synthetic profile detection (CHANGE 6 — strengthened).
+Honeypot / synthetic profile detection (TASK 7 — strengthened with consistency checks).
 
 Produces a quality_score (0–1) per candidate. Low scores indicate
 suspicious profiles that should be filtered out.
+
+New consistency checks:
+  - Headline vs Career mismatch
+  - Summary vs Career mismatch
+  - Education vs Experience mismatch
+  - Skill stuffing (unrelated domain diversity)
 """
 
 from typing import Optional
 
 from src.ingestion.candidate_parser import Candidate
 from src.utils.config import Config
+from src.utils.constants import UNRELATED_SKILL_DOMAINS
 from src.utils.date_utils import years_since_graduation
 from src.utils.logging_utils import get_logger
 
@@ -75,6 +82,95 @@ def _has_relevant_tech_experience(candidate: Candidate) -> bool:
     return False
 
 
+def _compute_consistency_score(candidate: Candidate) -> float:
+    """
+    Compute profile consistency score (TASK 7 — new).
+    
+    Checks for internal contradictions within a candidate's profile:
+    1. Headline vs Career mismatch
+    2. Summary vs Career mismatch
+    3. Skill stuffing (unrelated domain diversity)
+    
+    Returns:
+        Score in [0.0, 1.0] where 1.0 = fully consistent.
+    """
+    penalties = 0.0
+    max_penalty = 3.0
+
+    # ── 1. Headline vs Career mismatch ──────────────────────────────
+    headline = (candidate.headline or "").lower()
+    if headline and candidate.career_history:
+        # Check if headline domain matches any career description
+        headline_domains = _extract_domain_signals(headline)
+        career_text = " ".join(
+            (c.description or "").lower() + " " + (c.title or "").lower()
+            for c in candidate.career_history
+        )
+        career_domains = _extract_domain_signals(career_text)
+
+        if headline_domains and career_domains:
+            overlap = headline_domains & career_domains
+            if not overlap and len(headline_domains) > 0:
+                penalties += 0.8
+
+    # ── 2. Summary vs Career mismatch ───────────────────────────────
+    summary = (candidate.summary or "").lower()
+    if summary and candidate.career_history:
+        summary_domains = _extract_domain_signals(summary)
+        if not career_domains:
+            career_text = " ".join(
+                (c.description or "").lower() for c in candidate.career_history
+            )
+            career_domains = _extract_domain_signals(career_text)
+        
+        if summary_domains and career_domains:
+            overlap = summary_domains & career_domains
+            if not overlap and len(summary_domains) > 0:
+                penalties += 0.7
+
+    # ── 3. Skill stuffing (unrelated domain diversity) ──────────────
+    if candidate.skills:
+        skill_names = [s.name.lower() for s in candidate.skills]
+        matched_unrelated_domains = set()
+        for domain, keywords in UNRELATED_SKILL_DOMAINS.items():
+            for skill in skill_names:
+                if any(kw in skill for kw in keywords):
+                    matched_unrelated_domains.add(domain)
+                    break
+        # If 3+ unrelated domains present in skill list → suspicious
+        if len(matched_unrelated_domains) >= 3:
+            penalties += 1.0
+        elif len(matched_unrelated_domains) >= 2:
+            penalties += 0.5
+
+    consistency = max(0.0, 1.0 - (penalties / max_penalty))
+    return round(consistency, 4)
+
+
+def _extract_domain_signals(text: str) -> set:
+    """Extract domain signal categories from text."""
+    domains = set()
+    domain_map = {
+        "ml_ai": ["machine learning", "deep learning", "neural", "model training",
+                   "nlp", "natural language", "embeddings", "transformers", "ai"],
+        "search_retrieval": ["search", "retrieval", "ranking", "recommendation",
+                            "matching", "indexing", "vector", "embedding"],
+        "engineering": ["software", "engineer", "developer", "programming",
+                       "backend", "frontend", "fullstack", "devops"],
+        "data": ["data science", "data analysis", "analytics", "data engineer",
+                "data pipeline", "etl", "warehouse"],
+        "management": ["manager", "director", "head of", "vp", "chief",
+                      "lead", "management"],
+        "marketing": ["marketing", "sales", "business development", "advertising",
+                     "seo", "content"],
+        "hr": ["recruiter", "recruitment", "talent", "hr", "human resources"],
+    }
+    for domain, keywords in domain_map.items():
+        if any(kw in text for kw in keywords):
+            domains.add(domain)
+    return domains
+
+
 def compute_quality_score(candidate: Candidate) -> float:
     """
     Compute a quality score [0, 1] for a candidate.
@@ -89,6 +185,7 @@ def compute_quality_score(candidate: Candidate) -> float:
     6. Title progression sanity
     7. Experience-skill mismatch
     8. Career duration consistency
+    9. Profile consistency (TASK 7 — new)
     """
     if _check_non_tech_role(candidate):
         return 0.0
@@ -97,7 +194,7 @@ def compute_quality_score(candidate: Candidate) -> float:
         return 0.0
 
     penalties = 0.0
-    max_penalty = 8.0  # total possible penalty points
+    max_penalty = 10.0  # increased to accommodate new checks
 
     # ── 1. Experience Timeline Inconsistency ─────────────────────────
     # If graduation was recent but claimed experience is huge
@@ -194,6 +291,12 @@ def compute_quality_score(candidate: Candidate) -> float:
         
         if has_cv and not has_nlp:
             penalties += 0.75
+
+    # ── 10. Profile Consistency (TASK 7 — new) ───────────────────────
+    consistency = _compute_consistency_score(candidate)
+    # Convert consistency to penalty: low consistency → high penalty
+    consistency_penalty = (1.0 - consistency) * 1.5
+    penalties += consistency_penalty
 
     # ── Compute final score ──────────────────────────────────────────
     quality = max(0.0, 1.0 - (penalties / max_penalty))

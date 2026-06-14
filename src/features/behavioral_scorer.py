@@ -1,10 +1,13 @@
 """
 Behavioral signal scorer — maps redrob_signals to a composite score.
+TASK 9 — notice period as hiring modifier.
+TASK 10 — relocation bonus.
 """
 
 from datetime import date
 
 from src.ingestion.candidate_parser import Candidate
+from src.utils.config import Config
 from src.utils.date_utils import parse_date
 
 
@@ -19,8 +22,8 @@ def score_behavioral(candidate: Candidate) -> float:
     - github_activity (15%)
     - saved_by_recruiters (10%)
     - interview_completion (15%)
-    - notice_period (10%)
     - profile_completeness (10%)
+    - relocation + notice as modifiers (10%)
 
     Returns:
         Normalized score [0, 1].
@@ -71,32 +74,37 @@ def score_behavioral(candidate: Candidate) -> float:
     # ── 6. Interview completion rate ─────────────────────────────────
     interview_score = min(1.0, sig.interview_completion_rate)
 
-    # ── 7. Notice period (shorter = better, cap at 90 days) ──────────
+    # ── 7. Profile completeness ──────────────────────────────────────
+    completeness_score = min(1.0, sig.profile_completeness_score / 100.0)
+
+    # ── 8. Notice period penalty (TASK 9) ────────────────────────────
+    # Hiring modifier: shorter notice = better availability
     notice = sig.notice_period_days
     if notice <= 0:
         notice_score = 0.5  # unknown
     elif notice <= 30:
-        notice_score = 1.0
+        notice_score = 1.0   # no penalty
     elif notice <= 60:
-        notice_score = 0.7
+        notice_score = 0.85  # small penalty
     elif notice <= 90:
-        notice_score = 0.4
+        notice_score = 0.6   # moderate penalty
     else:
-        notice_score = 0.2
+        notice_score = 0.3   # strong penalty (120+ days)
 
-    # ── 8. Profile completeness ──────────────────────────────────────
-    completeness_score = min(1.0, sig.profile_completeness_score / 100.0)
+    # ── 9. Relocation bonus (TASK 10) ────────────────────────────────
+    relocation_score = 1.0 if sig.willing_to_relocate else 0.5
 
     # ── Weighted combination ─────────────────────────────────────────
     score = (
         0.10 * open_score
         + 0.15 * resp_score
         + 0.15 * recency_score
-        + 0.15 * github_score
-        + 0.10 * saved_score
-        + 0.15 * interview_score
-        + 0.10 * notice_score
+        + 0.12 * github_score
+        + 0.08 * saved_score
+        + 0.13 * interview_score
         + 0.10 * completeness_score
+        + 0.10 * notice_score
+        + 0.07 * relocation_score
     )
 
     return round(min(1.0, score), 4)

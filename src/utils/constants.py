@@ -15,7 +15,7 @@ DEFAULT_TARGET_SKILLS = [
     "elasticsearch", "milvus", "pinecone", "weaviate", "faiss",
 ]
 
-# ── Retrieval Domain Keywords (CHANGE 2) ─────────────────────────────
+# ── Retrieval Domain Keywords (CHANGE 2 — strengthened) ──────────────
 RETRIEVAL_KEYWORDS = [
     "semantic search", "retrieval", "hybrid search", "vector search",
     "rag", "retrieval augmented generation", "candidate matching",
@@ -26,9 +26,24 @@ RETRIEVAL_KEYWORDS = [
     "embedding search", "approximate nearest neighbor", "ann",
     "faiss", "milvus", "pinecone", "weaviate", "elasticsearch",
     "opensearch", "solr", "lucene",
+    # Strengthened: additional retrieval signals
+    "search relevance", "query expansion", "search ranking",
+    "candidate retrieval", "search infrastructure", "search system",
+    "retrieval system", "embedding pipeline", "embedding index",
+    "vector index", "nearest neighbor", "knn", "hnsw",
+    "qdrant", "index refresh", "inverted index", "search quality",
 ]
 
-# ── Ranking/Recommendation Keywords (CHANGE 2) ──────────────────────
+# Retrieval skill keywords for bonus scoring
+RETRIEVAL_SKILL_KEYWORDS = {
+    "retrieval", "search", "rag", "vector", "elasticsearch",
+    "milvus", "pinecone", "weaviate", "faiss", "solr", "lucene",
+    "opensearch", "qdrant", "bm25", "information retrieval",
+    "semantic search", "hybrid search", "vector database",
+    "vector search", "dense retrieval", "neural search",
+}
+
+# ── Ranking/Recommendation Keywords (CHANGE 2 — strengthened) ────────
 RANKING_KEYWORDS = [
     "ranking systems", "recommendation systems", "recommender systems",
     "matching systems", "learning to rank", "search ranking",
@@ -39,9 +54,22 @@ RANKING_KEYWORDS = [
     "ranking model", "relevance scoring", "listwise ranking",
     "pairwise ranking", "pointwise ranking", "xgboost ranking",
     "lambdamart", "ndcg optimization",
+    # Strengthened: additional ranking signals
+    "learning-to-rank", "l2r", "candidate ranking", "result ranking",
+    "re-ranking", "ranking pipeline", "ranking quality",
+    "recommendation engine", "recommendation pipeline",
+    "candidate matching", "job matching", "talent matching",
 ]
 
-# ── Evaluation Framework Keywords (CHANGE 2) ────────────────────────
+# Ranking skill keywords for bonus scoring
+RANKING_SKILL_KEYWORDS = {
+    "ranking", "recommendation", "recommender", "matching",
+    "personalization", "collaborative filtering", "xgboost",
+    "learning to rank", "lambdamart", "lightgbm",
+    "candidate matching", "search ranking",
+}
+
+# ── Evaluation Framework Keywords (CHANGE 2 — strengthened) ──────────
 EVALUATION_KEYWORDS = [
     "ndcg", "map", "mrr", "recall@k", "precision@k",
     "a/b testing", "online evaluation", "offline evaluation",
@@ -50,9 +78,17 @@ EVALUATION_KEYWORDS = [
     "backtesting", "counterfactual evaluation", "causal inference",
     "experiment platform", "feature importance", "ablation study",
     "cross validation", "hyperparameter tuning",
+    # Strengthened: additional evaluation signals
+    "recall@", "precision@", "f1 score", "roc auc",
+    "mean average precision", "mean reciprocal rank",
+    "normalized discounted cumulative gain",
+    "experiment framework", "online experiment",
+    "offline metrics", "ranking metrics", "search metrics",
+    "evaluation pipeline", "evaluation metrics", "metric improvement",
+    "benchmark", "test set", "ground truth",
 ]
 
-# ── Production/Deployment Keywords (CHANGE 3) ───────────────────────
+# ── Production/Deployment Keywords (CHANGE 3 — strengthened) ─────────
 PRODUCTION_KEYWORDS = [
     "deployed", "production", "latency", "serving", "monitoring",
     "observability", "millions of users", "scale", "distributed systems",
@@ -64,6 +100,35 @@ PRODUCTION_KEYWORDS = [
     "kubernetes", "docker", "microservices", "api", "rest api",
     "grpc", "kafka", "rabbitmq", "redis", "caching",
     "high availability", "fault tolerance", "disaster recovery",
+    # Strengthened: additional production signals
+    "inference serving", "model deployment", "production system",
+    "production environment", "production infrastructure",
+    "qps", "queries per second", "latency optimization",
+    "index refresh", "real-time", "low latency",
+    "scalable", "scalability", "horizontal scaling",
+    "production ml", "production machine learning",
+    "inference optimization", "model optimization",
+    "system design", "architecture design",
+]
+
+# ── LLM Hype Keywords (TASK 3) ──────────────────────────────────────
+LLM_HYPE_KEYWORDS = [
+    "langchain", "openai", "prompt engineering", "chatgpt",
+    "claude", "gemini", "gpt-4", "gpt-3", "gpt3", "gpt4",
+    "llamaindex", "llama index", "prompt tuning", "prompt design",
+    "chatbot", "conversational ai", "ai assistant",
+    "openai api", "anthropic", "copilot",
+]
+
+# Keywords that indicate real ML depth (counterbalance to LLM hype)
+REAL_ML_DEPTH_KEYWORDS = [
+    "retrieval", "ranking", "recommendation", "search",
+    "evaluation", "production ml", "deployed", "serving",
+    "embeddings", "fine-tuning", "training", "inference",
+    "distributed", "pipeline", "scale", "latency",
+    "vector database", "information retrieval",
+    "machine learning", "deep learning", "model training",
+    "feature engineering", "data pipeline",
 ]
 
 # ── Education: Relevant Fields ───────────────────────────────────────
@@ -108,7 +173,23 @@ TIER_WEIGHTS = {
 # ── Proficiency Multipliers ──────────────────────────────────────────
 PROFICIENCY_WEIGHTS = {
     "expert": 1.0,
-    "advanced": 0.85,
-    "intermediate": 0.6,
-    "beginner": 0.3,
+    "advanced": 1.0,
+    "intermediate": 0.7,
+    "beginner": 0.4,
+}
+
+# ── Skill Domains for Consistency Checking (TASK 7) ──────────────────
+UNRELATED_SKILL_DOMAINS = {
+    "mechanical": ["mechanical design", "autocad", "solidworks", "catia", "ansys",
+                    "mechanical engineering", "thermodynamics", "fluid mechanics"],
+    "civil": ["civil engineering", "structural analysis", "construction",
+              "surveying", "geotechnical"],
+    "accounting": ["accounting", "bookkeeping", "tax", "audit", "financial reporting",
+                    "tally", "quickbooks"],
+    "sales": ["sales", "cold calling", "lead generation", "crm", "salesforce",
+              "business development"],
+    "design": ["photoshop", "illustrator", "figma", "sketch", "indesign",
+               "graphic design", "ui design", "visual design"],
+    "hr": ["recruitment", "talent acquisition", "payroll", "onboarding",
+           "employee relations", "hr management"],
 }

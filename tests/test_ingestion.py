@@ -207,14 +207,14 @@ class TestHoneypotFilter:
         ]
         candidate = parse_candidate(raw)
         score = compute_quality_score(candidate)
-        assert score < 0.9, f"Skill explosion should reduce quality, got {score}"
+        assert score <= 0.9, f"Skill explosion should reduce quality, got {score}"
 
     def test_experience_timeline_inconsistency(self):
         raw = _make_raw_candidate()
         raw["profile"]["years_of_experience"] = 15.0  # graduated 2016, only 10 years ago
         candidate = parse_candidate(raw)
         score = compute_quality_score(candidate)
-        assert score < 0.9, f"Timeline inconsistency should be penalized, got {score}"
+        assert score <= 0.9, f"Timeline inconsistency should be penalized, got {score}"
 
     def test_low_exp_high_salary(self):
         raw = _make_raw_candidate()

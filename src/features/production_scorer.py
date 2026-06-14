@@ -1,10 +1,10 @@
 """
-Production experience scorer (CHANGE 3).
+Production experience scorer (TASK 6 — strengthened).
 
 Detects evidence of production-grade engineering: deployment,
 serving, monitoring, scale, distributed systems, etc.
 
-Production deployment experience ranks higher than research-only.
+Production deployment experience ranks higher than research/hobby projects.
 """
 
 from src.ingestion.candidate_parser import Candidate
@@ -12,12 +12,25 @@ from src.utils.constants import PRODUCTION_KEYWORDS
 from src.utils.text_utils import count_keyword_matches, canonicalize_skill
 
 
+# Skills that indicate real production engineering
+_PROD_SKILL_KEYWORDS = {
+    "docker", "kubernetes", "aws", "azure", "gcp",
+    "mlops", "airflow", "kafka", "redis", "cicd",
+    "terraform", "ansible", "jenkins", "mlflow",
+    "kubeflow", "grpc", "rest api", "microservices",
+    "distributed systems", "model serving", "production",
+    "monitoring", "observability", "prometheus", "grafana",
+    "datadog", "elasticsearch", "system design",
+}
+
+
 def score_production(candidate: Candidate) -> float:
     """
     Score production engineering experience.
 
     Scans career descriptions, titles, skills, headline, and summary
-    for production/deployment/scale keywords.
+    for production/deployment/scale keywords. Strongly rewards
+    evidence of real production deployments.
 
     Returns:
         Normalized score [0, 1].
@@ -45,30 +58,32 @@ def score_production(candidate: Candidate) -> float:
 
     matches = count_keyword_matches(combined, PRODUCTION_KEYWORDS)
 
-    if matches >= 10:
+    # Graduated scoring — more granular for production signals
+    if matches >= 12:
         score = 1.0
-    elif matches >= 7:
-        score = 0.85
-    elif matches >= 5:
-        score = 0.7
+    elif matches >= 10:
+        score = 0.92
+    elif matches >= 8:
+        score = 0.82
+    elif matches >= 6:
+        score = 0.72
+    elif matches >= 4:
+        score = 0.58
     elif matches >= 3:
-        score = 0.5
+        score = 0.45
     elif matches >= 2:
-        score = 0.35
+        score = 0.32
     elif matches >= 1:
-        score = 0.2
+        score = 0.18
     else:
         score = 0.0
 
-    # Bonus for production-related skills
-    prod_skill_keywords = {"docker", "kubernetes", "aws", "azure", "gcp",
-                           "mlops", "airflow", "kafka", "redis", "cicd",
-                           "terraform", "ansible", "jenkins", "mlflow"}
+    # Bonus for production-related skills (slightly stronger)
     skill_bonus = 0.0
     for s in candidate.skills:
         canon = canonicalize_skill(s.name)
-        if any(kw in canon for kw in prod_skill_keywords):
-            skill_bonus += 0.05
+        if any(kw in canon for kw in _PROD_SKILL_KEYWORDS):
+            skill_bonus += 0.06
 
-    score = min(1.0, score + min(0.2, skill_bonus))
+    score = min(1.0, score + min(0.25, skill_bonus))
     return round(score, 4)

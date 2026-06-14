@@ -1,9 +1,11 @@
 """
 Score combiner — aggregates semantic, structured, behavioral, and quality scores
-into a final candidate score (CHANGE 7 — rebalanced weights).
+into a final candidate score (TASK 11 — rebalanced for technical dominance).
 
-Default weights:
-  0.25 semantic + 0.45 structured + 0.20 behavioral + 0.10 quality
+Weights:
+  0.20 semantic + 0.55 structured + 0.15 behavioral + 0.10 quality
+
+Technical relevance dominates. Behavioral signals modify fit, not define it.
 """
 
 from typing import Any, Dict, List
@@ -52,7 +54,7 @@ def combine_scores(
             "structured_score": structured,
             "behavioral_score": behavioral,
             "quality_score": quality,
-            # Pass through all sub-scores for reasoning
+            # Pass through all sub-scores for reasoning and debug
             **{k: v for k, v in features.items() if k not in ("candidate_id", "structured_score", "behavioral_score")},
         })
 
