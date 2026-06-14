@@ -24,20 +24,21 @@ class EmbeddingGenerator:
         self.model = None
 
     def load_model(self):
-        """Load the SentenceTransformer model (download if needed)."""
+        """Load the SentenceTransformer model (download if needed) strictly on CPU."""
         from sentence_transformers import SentenceTransformer
         import os
 
         if os.path.exists(self.model_dir) and os.listdir(self.model_dir):
-            logger.info(f"Loading model from local cache: {self.model_dir}")
-            self.model = SentenceTransformer(self.model_dir)
+            logger.info(f"Loading model from local cache: {self.model_dir} (forcing CPU)")
+            self.model = SentenceTransformer(self.model_dir, device="cpu")
         else:
-            logger.info(f"Downloading model: {self.model_name}")
-            self.model = SentenceTransformer(self.model_name)
+            logger.info(f"Downloading model: {self.model_name} (forcing CPU)")
+            self.model = SentenceTransformer(self.model_name, device="cpu")
             # Save to local cache for future offline runs
             os.makedirs(self.model_dir, exist_ok=True)
             self.model.save(self.model_dir)
             logger.info(f"Model saved to {self.model_dir}")
+
 
     def encode_texts(
         self,
