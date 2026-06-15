@@ -86,21 +86,20 @@ $$\text{Final Score} = 0.35 \times \text{Semantic Score} + 0.30 \times \text{Str
 
 ## Setup & Running
 
-### Installation
-Clone the repository and install the dependencies:
-```bash
-pip install -r requirements.txt
-```
+### 1. Data Placement
+Before running the pipeline, you must add the input data and job description files to the `data/` folder:
+* **Candidate Data**: Place the candidates JSONL file at `data/candidates.jsonl`.
+* **Job Description**: Place the target job description Markdown file at `data/job_description.md`.
 
-### Running the Pipeline
-To run the full candidate discovery and ranking pipeline from raw data to the final validation CSV output, execute:
+### 2. Run the Project
+To install all required dependencies and run the entire candidate discovery and ranking pipeline end-to-end, execute the following command in the project root:
 ```bash
-python main.py
+pip install -r requirements.txt && python main.py
 ```
-This produces the formatted `outputs/submission.csv` containing the Top 100 candidate IDs, their score, rank, and structured reasoning.
+This command installs the packages (including local CPU inference utilities), downloads/caches the sentence embedding model (`all-MiniLM-L6-v2`), and produces the formatted `outputs/submission.csv` containing the Top 100 candidates.
 
-### Running Tests
-To verify all unit tests and integration pipelines:
+### 3. Running Tests
+To verify the unit and integration test suite:
 ```bash
 pytest
 ```
