@@ -82,3 +82,28 @@ class EmbeddingGenerator:
             normalize_embeddings=True,
         )
         return embedding[0]
+
+    def encode_concept_texts(self, concept_texts: dict) -> dict:
+        """
+        Encode a dict of concept texts into normalized embeddings.
+
+        Args:
+            concept_texts: {concept_name: text_description}
+
+        Returns:
+            {concept_name: np.ndarray} — normalized embeddings for each concept.
+        """
+        if self.model is None:
+            self.load_model()
+
+        result = {}
+        for name, text in concept_texts.items():
+            embedding = self.model.encode(
+                [text],
+                normalize_embeddings=True,
+            )
+            result[name] = embedding[0]
+            logger.info(f"Encoded concept '{name}': shape {embedding[0].shape}")
+
+        return result
+

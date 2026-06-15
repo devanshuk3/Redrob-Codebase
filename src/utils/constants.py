@@ -193,3 +193,28 @@ UNRELATED_SKILL_DOMAINS = {
     "hr": ["recruitment", "talent acquisition", "payroll", "onboarding",
            "employee relations", "hr management"],
 }
+
+# Concept Embedding Texts (TASK A — 3-concept semantic scoring)
+
+RANKING_CONCEPT_TEXT = """
+Built and deployed production ranking or retrieval systems. Dense retrieval,
+semantic search, vector databases, FAISS, Pinecone, Weaviate, Qdrant, Milvus,
+Elasticsearch, OpenSearch. Recommendation systems, information retrieval,
+learning to rank, re-ranking, BM25, hybrid search. Sentence transformers,
+bi-encoder models, cross-encoders, embedding models, RAG systems.
+"""
+
+EVALUATION_CONCEPT_TEXT = """
+Designed evaluation frameworks for ranking and retrieval systems. Offline
+evaluation metrics NDCG, MRR, MAP, Precision at K. A/B testing for ranking
+quality. Online to offline correlation. Statistical significance testing.
+Recall evaluation, precision-recall tradeoffs, benchmark datasets.
+"""
+
+PRODUCTION_CONCEPT_TEXT = """
+Shipped ML systems to production at scale. Fine-tuning LLMs with LoRA, QLoRA,
+PEFT, instruction tuning. Strong Python engineering, production-grade code.
+MLOps, experiment tracking, MLflow, Weights and Biases. Model serving,
+inference optimization. Open source contributions in AI and ML.
+"""
+

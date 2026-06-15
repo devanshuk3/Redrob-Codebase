@@ -48,3 +48,44 @@ def compute_semantic_scores(
     )
 
     return scores
+
+
+def compute_concept_scores(
+    concept_embeddings: dict,
+    candidate_embeddings: np.ndarray,
+    candidate_ids: list,
+) -> dict:
+    """
+    Compute per-concept cosine similarity scores for each candidate.
+
+    Args:
+        concept_embeddings: {concept_name: np.ndarray} — 1D embedding per concept.
+        candidate_embeddings: 2D array (n_candidates, embedding_dim).
+        candidate_ids: List of candidate IDs matching the embeddings.
+
+    Returns:
+        {candidate_id: {concept_name: score}} for each concept.
+        Scores are raw cosine similarities, clipped to [0, 1].
+    """
+    result = {}
+
+    for cid in candidate_ids:
+        result[str(cid)] = {}
+
+    for concept_name, concept_emb in concept_embeddings.items():
+        if concept_emb.ndim == 1:
+            concept_emb = concept_emb.reshape(1, -1)
+
+        similarities = cosine_similarity(concept_emb, candidate_embeddings)[0]
+        similarities = np.clip(similarities, 0.0, 1.0)
+
+        for cid, sim in zip(candidate_ids, similarities):
+            result[str(cid)][concept_name] = round(float(sim), 4)
+
+    logger.info(
+        f"Computed concept scores for {len(result)} candidates "
+        f"across {len(concept_embeddings)} concepts"
+    )
+
+    return result
+

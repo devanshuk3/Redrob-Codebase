@@ -73,3 +73,36 @@ class EmbeddingStore:
     def load_jd_embedding(self) -> Optional[np.ndarray]:
         """Load cached JD embedding."""
         return load_numpy(self.jd_path)
+
+    def save_concept_embeddings(self, concept_embs: dict):
+        """
+        Save concept embeddings to disk.
+        Each concept is saved as a separate .npy file in models/ directory.
+        Filenames: concept_{name}.npy (e.g., concept_ranking.npy).
+        """
+        import os
+        models_dir = os.path.dirname(self.jd_path)
+        for name, emb in concept_embs.items():
+            path = os.path.join(models_dir, f"concept_{name}.npy")
+            save_numpy(path, emb)
+        logger.info(f"Saved {len(concept_embs)} concept embeddings to {models_dir}")
+
+    def load_concept_embeddings(self) -> Optional[dict]:
+        """
+        Load concept embeddings from disk.
+        Returns {name: np.ndarray} or None if any file is missing.
+        """
+        import os
+        models_dir = os.path.dirname(self.jd_path)
+        concept_names = ["ranking", "evaluation", "production"]
+        result = {}
+        for name in concept_names:
+            path = os.path.join(models_dir, f"concept_{name}.npy")
+            emb = load_numpy(path)
+            if emb is None:
+                logger.info(f"Concept embedding '{name}' not found at {path}")
+                return None
+            result[name] = emb
+        logger.info(f"Loaded {len(result)} concept embeddings from {models_dir}")
+        return result
+

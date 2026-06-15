@@ -302,7 +302,13 @@ class TestFeatureBuilder:
         assert "experience_score" in features
         assert "behavioral_score" in features
         assert "structured_score" in features
-        # All scores should be 0-1
+        assert "consulting_ratio" in features
+        assert "career_keyword_scores" in features
+        # All numeric scores should be 0-1
+        non_numeric_keys = ("candidate_id", "scale_boost", "behavioral_boost",
+                            "assessment_modifier", "experience_distance",
+                            "career_keyword_scores")
         for key, val in features.items():
-            if key not in ("candidate_id", "scale_boost", "behavioral_boost", "assessment_modifier", "experience_distance"):
+            if key not in non_numeric_keys:
                 assert 0.0 <= val <= 1.0, f"{key} = {val} is out of [0, 1]"
+

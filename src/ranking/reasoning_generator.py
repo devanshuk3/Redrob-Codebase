@@ -1,15 +1,16 @@
 """
 Reasoning generator — template-based, no LLM (TASK 5 — improved reasoning quality).
 
-Generates 1-2 sentence reasoning using only actual candidate data.
+Generates 3-4 sentence reasoning using only actual candidate data.
 No hallucinations. References real skills, experience, and signals.
 Structured into:
-  1. Technical signal
-  2. Production signal
-  3. Hiring signal
-  4. Optional concern (Notice, Hype, Traps, Experience Outliers)
+  1. Technical signal (tools vs concepts)
+  2. Production signal (scale + deployment)
+  3. Hiring signal (recruiter, GitHub, availability)
+  4. Optional concern (notice, hype, consulting, skills, experience)
 """
 
+from datetime import date
 from typing import Any, Dict, List, Set
 
 from src.ingestion.candidate_parser import Candidate
@@ -18,6 +19,13 @@ from src.features.jd_feature_mapper import JDFeatures
 from src.utils.logging_utils import get_logger
 
 logger = get_logger(__name__)
+
+# Tools recognized for sentence 1 — specific infrastructure
+_TOOL_NAMES = {
+    "milvus", "faiss", "pinecone", "weaviate", "elasticsearch", "opensearch",
+    "qdrant", "pytorch", "tensorflow", "langchain", "lora", "qlora", "peft",
+    "hugging face transformers", "transformers", "llamaindex",
+}
 
 
 def generate_reasoning(
@@ -69,108 +77,114 @@ def _build_reasoning(
 ) -> str:
     """Build a reasoning string from actual candidate data structured into 4 parts."""
     yoe = candidate.years_of_experience
-    
-    # 1. Technical Signal
-    tech_skills = get_matched_skills(candidate, jd_features)
-    tech_skills = _deduplicate_skills(tech_skills)
-    
-    # Clean and singularize/pluralize duplicates (e.g. Embeddings and embedding)
-    normalized_skills = []
-    seen_roots = set()
-    for s in tech_skills:
-        root = s.lower().replace(" ", "").replace("-", "").strip()
-        if root.endswith("s") and root[:-1] in seen_roots:
-            continue
-        if root + "s" in seen_roots:
-            continue
-        if root not in seen_roots:
-            seen_roots.add(root)
-            normalized_skills.append(s)
-            
-    tech_parts = []
-    if normalized_skills:
-        tools = [s for s in normalized_skills if s.lower() in {
-            "milvus", "faiss", "pinecone", "weaviate", "elasticsearch", "opensearch", 
-            "solr", "lucene", "qdrant", "pytorch", "tensorflow", "transformers", "langchain", "llamaindex"
-        }]
-        concepts = [s for s in normalized_skills if s not in tools]
-        
-        if tools:
-            tech_parts.append(f"Demonstrated technical expertise with {', '.join(tools[:3])} ({yoe:.0f} YOE)")
-            if concepts:
-                tech_parts.append(f"focusing on {concepts[0].lower()}")
+
+    # ── Sentence 1 — Technical Signal ──
+    matched_skills = get_matched_skills(candidate, jd_features)
+    matched_skills = _deduplicate_skills(matched_skills)
+
+    tools = [s for s in matched_skills if s.lower() in _TOOL_NAMES]
+    concepts = [s for s in matched_skills if s.lower() not in _TOOL_NAMES]
+
+    if tools:
+        tool_str = ", ".join(tools[:3])
+        if concepts:
+            tech_sentence = (
+                f"Demonstrated expertise with {tool_str} ({yoe:.0f} YOE), "
+                f"focusing on {concepts[0].lower()}."
+            )
         else:
-            tech_parts.append(f"Technical skills in {', '.join(concepts[:3])} ({yoe:.0f} YOE)")
+            tech_sentence = f"Demonstrated expertise with {tool_str} ({yoe:.0f} YOE)."
+    elif concepts:
+        concept_str = ", ".join(concepts[:3])
+        tech_sentence = f"Technical background in {concept_str} ({yoe:.0f} YOE)."
     else:
-        tech_parts.append(f"Background in machine learning engineering ({yoe:.0f} YOE)")
+        tech_sentence = f"Adjacent ML/engineering background ({yoe:.0f} YOE)."
 
-
-    tech_sentence = " ".join(tech_parts)
-    if not tech_sentence.endswith("."):
-        tech_sentence += "."
-
-    # 2. Production Signal
+    # ── Sentence 2 — Production Signal ──
+    career_desc = " ".join(
+        [c.description.lower() for c in candidate.career_history if c.description]
+    )
+    has_scale = any(
+        w in career_desc
+        for w in ["scale", "million", "billion", "high traffic", "low latency",
+                   "qps", "production", "shipped", "deployed"]
+    )
     prod_score = scores.get("production_score", 0.0)
-    career_desc = " ".join([c.description.lower() for c in candidate.career_history if c.description])
-    has_scale = any(w in career_desc for w in ["scale", "million", "million users", "high traffic", "low latency", "qps", "production"])
-    
-    if prod_score >= 0.7 or has_scale:
-        prod_sentence = "Proven experience deploying models to production and managing system scale."
-    elif prod_score >= 0.4:
+
+    if prod_score >= 0.6 or has_scale:
+        prod_sentence = "Proven experience deploying ML systems to production at scale."
+    elif prod_score >= 0.35:
         prod_sentence = "Familiar with production ML pipelines and deployment workflows."
     else:
-        prod_sentence = "Focuses primarily on model development and engineering."
+        prod_sentence = "Experience primarily in model development and research."
 
-    # 3. Hiring Signal
+    # ── Sentence 3 — Hiring Signal ──
     sig = candidate.redrob_signals
     hiring_parts = []
+
     if sig.recruiter_response_rate >= 0.7:
         hiring_parts.append("strong recruiter engagement")
+
     if sig.github_activity_score > 60:
-        hiring_parts.append("active GitHub contribution history")
-    if sig.open_to_work_flag:
-        hiring_parts.append("actively seeking new opportunities")
-        
+        hiring_parts.append("active GitHub history")
+
+    # Days since last active
+    try:
+        last_active = date.fromisoformat(sig.last_active_date)
+        days_since = (date(2026, 6, 14) - last_active).days
+    except (ValueError, TypeError, AttributeError):
+        days_since = 999
+
+    if sig.open_to_work_flag and days_since <= 30:
+        hiring_parts.append("actively looking and recently active")
+    elif sig.open_to_work_flag:
+        hiring_parts.append("open to work")
+
     notice = sig.notice_period_days
     if notice <= 30:
-        hiring_parts.append("available for immediate onboarding")
+        hiring_parts.append("immediate joiner")
     elif notice <= 60:
-        hiring_parts.append(f"notice period of {notice} days")
-        
-    if hiring_parts:
-        hiring_sentence = f"Candidate displays {', '.join(hiring_parts)}."
-    else:
-        hiring_sentence = "Hiring readiness is within standard parameters."
+        hiring_parts.append(f"{notice}-day notice")
 
-    # 4. Optional Concern
+    if hiring_parts:
+        hiring_sentence = f"Candidate shows {', '.join(hiring_parts)}."
+    else:
+        hiring_sentence = "Hiring readiness within standard parameters."
+
+    # ── Sentence 4 — Concerns (optional) ──
     concerns = []
+
     if notice > 90:
-        concerns.append(f"long notice period of {notice} days")
-    
+        concerns.append(f"long notice period ({notice} days)")
+
     hype_penalty = scores.get("llm_hype_penalty", 0.0)
     if hype_penalty > 0.05:
-        concerns.append("AI experience leans heavily on recent LLM wrapper libraries")
-        
-    trap_prob = scores.get("trap_probability", 0.0)
-    if trap_prob > 0.3:
-        concerns.append("profile exhibits consistency anomalies")
-        
-    yoe = candidate.years_of_experience
+        concerns.append("AI experience skews toward LLM wrapper libraries")
+
+    consulting_ratio = scores.get("consulting_ratio", 0.0)
+    if consulting_ratio > 0.6:
+        concerns.append("high consulting exposure")
+
+    if not matched_skills:
+        concerns.append("no direct JD skill matches found")
+
     if yoe < 3.0:
-        concerns.append("lower years of experience relative to senior requirements")
-    elif yoe >= 15.0:
-        concerns.append("experience level exceeds typical mid-to-senior target range")
+        concerns.append("below seniority threshold")
+
+    if yoe >= 15.0:
+        concerns.append("experience exceeds target range")
 
     if concerns:
         concern_sentence = f"Note: {'; '.join(concerns)}."
     else:
         concern_sentence = ""
 
-    # Combine sentences
+    # ── Combine ──
     sentences = [tech_sentence, prod_sentence, hiring_sentence]
     if concern_sentence:
         sentences.append(concern_sentence)
-        
+
     reasoning = " ".join(sentences)
     reasoning = reasoning.replace("..", ".").replace(" .", "").strip()
     return reasoning
+

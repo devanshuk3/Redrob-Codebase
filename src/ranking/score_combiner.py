@@ -21,6 +21,7 @@ def combine_scores(
     candidate_features: Dict[str, Dict[str, Any]],
     semantic_scores: Dict[str, float],
     quality_scores: Dict[str, float],
+    concept_scores: Dict[str, Dict[str, float]] = None,
 ) -> List[Dict[str, Any]]:
     """
     Combine all score dimensions into a final ranking score.
@@ -29,6 +30,7 @@ def combine_scores(
         candidate_features: {candidate_id: {structured_score, behavioral_score, ...}}
         semantic_scores: {candidate_id: semantic_score}
         quality_scores: {candidate_id: quality_score}
+        concept_scores: Optional {candidate_id: {concept_name: score}} from concept embeddings.
 
     Returns:
         List of dicts with candidate_id, final_score, and all sub-scores.
@@ -64,8 +66,22 @@ def combine_scores(
         ranking = features.get("ranking_score", 0.0)
         evaluation = features.get("evaluation_score", 0.0)
         production = features.get("production_score", 0.0)
-        
-        tech_scores = [retrieval, ranking, evaluation, production]
+
+        # Blend with concept scores if available (TASK C)
+        cid_concepts = {}
+        if concept_scores and cid in concept_scores:
+            cid_concepts = concept_scores[cid]
+            effective_retrieval  = 0.6 * retrieval  + 0.4 * cid_concepts.get("ranking", 0)
+            effective_ranking    = 0.6 * ranking    + 0.4 * cid_concepts.get("ranking", 0)
+            effective_evaluation = 0.6 * evaluation + 0.4 * cid_concepts.get("evaluation", 0)
+            effective_production = 0.6 * production + 0.4 * cid_concepts.get("production", 0)
+        else:
+            effective_retrieval = retrieval
+            effective_ranking = ranking
+            effective_evaluation = evaluation
+            effective_production = production
+
+        tech_scores = [effective_retrieval, effective_ranking, effective_evaluation, effective_production]
         strong_tech_count = sum(1 for s in tech_scores if s >= 0.6)
         domain_boost = 1.0
         if strong_tech_count >= 3:
@@ -78,7 +94,7 @@ def combine_scores(
         
         final_score = final_score * domain_boost * scale_boost * behavioral_boost
 
-        results.append({
+        entry = {
             "candidate_id": cid,
             "final_score": round(final_score, 6),
             "semantic_score": semantic,
@@ -87,7 +103,15 @@ def combine_scores(
             "quality_score": quality,
             # Pass through all sub-scores for reasoning and debug
             **{k: v for k, v in features.items() if k not in ("candidate_id", "structured_score", "behavioral_score")},
-        })
+        }
+
+        # Include concept scores in output for debug visibility
+        if cid_concepts:
+            entry["ranking_concept"] = cid_concepts.get("ranking", 0.0)
+            entry["evaluation_concept"] = cid_concepts.get("evaluation", 0.0)
+            entry["production_concept"] = cid_concepts.get("production", 0.0)
+
+        results.append(entry)
 
     logger.info(f"Combined scores for {len(results)} candidates")
     return results

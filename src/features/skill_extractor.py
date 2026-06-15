@@ -15,7 +15,10 @@ from rapidfuzz import fuzz
 from src.ingestion.candidate_parser import Candidate
 from src.features.jd_feature_mapper import JDFeatures
 from src.utils.text_utils import canonicalize_skill
-from src.utils.constants import PROFICIENCY_WEIGHTS
+from src.utils.constants import (
+    PROFICIENCY_WEIGHTS, RETRIEVAL_KEYWORDS, RANKING_KEYWORDS,
+    EVALUATION_KEYWORDS, PRODUCTION_KEYWORDS,
+)
 from src.utils.config import Config
 
 
@@ -210,3 +213,41 @@ def get_matched_skills(candidate: Candidate, jd_features: JDFeatures) -> List[st
                     matched.append(orig_name)
                 break
     return matched
+
+
+def score_career_domain_keywords(candidate: Candidate) -> dict:
+    """
+    Score career description text against domain-specific keyword sets.
+    Returns {domain_name: score} for retrieval, ranking, evaluation, production.
+    Each score is in [0.0, 1.0].
+
+    Scoring logic: count keyword hits in career description + title text,
+    normalize to [0, 1] with saturation at 4 hits per domain.
+    """
+    # Build career text from all career history entries
+    parts = []
+    for career in candidate.career_history:
+        if career.description:
+            parts.append(career.description.lower())
+        if career.title:
+            parts.append(career.title.lower())
+    career_text = " ".join(parts)
+
+    if not career_text.strip():
+        return {"retrieval": 0.0, "ranking": 0.0, "evaluation": 0.0, "production": 0.0}
+
+    domain_keywords = {
+        "retrieval": RETRIEVAL_KEYWORDS,
+        "ranking": RANKING_KEYWORDS,
+        "evaluation": EVALUATION_KEYWORDS,
+        "production": PRODUCTION_KEYWORDS,
+    }
+
+    scores = {}
+    for domain, keywords in domain_keywords.items():
+        hits = sum(1 for kw in keywords if kw in career_text)
+        # Normalize: saturation at 4 hits
+        scores[domain] = round(min(1.0, hits / 4.0), 4)
+
+    return scores
+

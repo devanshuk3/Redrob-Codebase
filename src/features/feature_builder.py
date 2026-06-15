@@ -18,7 +18,7 @@ from typing import Dict, Any
 
 from src.ingestion.candidate_parser import Candidate
 from src.features.jd_feature_mapper import JDFeatures
-from src.features.skill_extractor import score_skills
+from src.features.skill_extractor import score_skills, score_career_domain_keywords
 from src.features.experience_scorer import score_experience, compute_experience_fit_score
 from src.features.education_scorer import score_education
 from src.features.certification_scorer import score_certifications
@@ -122,8 +122,17 @@ def build_structured_features(
     experience = score_experience(candidate, jd_features)
     education = score_education(candidate)
     certification = score_certifications(candidate)
-    career = score_career(candidate, jd_features)
+    career, career_detail = score_career(candidate, jd_features)
     behavioral = score_behavioral(candidate)
+
+    # Career domain keyword scoring (TASK B)
+    career_keyword_scores = score_career_domain_keywords(candidate)
+
+    # Blend domain scores: 70% structured scorer + 30% career keyword scorer
+    retrieval = 0.70 * retrieval + 0.30 * career_keyword_scores.get("retrieval", 0.0)
+    ranking   = 0.70 * ranking   + 0.30 * career_keyword_scores.get("ranking", 0.0)
+    evaluation = 0.70 * evaluation + 0.30 * career_keyword_scores.get("evaluation", 0.0)
+    production = 0.70 * production + 0.30 * career_keyword_scores.get("production", 0.0)
 
     # Skill Assessment Modifier & Score (TASK 7)
     scores = candidate.redrob_signals.skill_assessment_scores or {}
@@ -235,6 +244,7 @@ def build_structured_features(
         "production_score": round(production, 4),
         "experience_score": round(experience, 4),
         "career_score": round(career, 4),
+        "consulting_ratio": round(career_detail.get("consulting_ratio", 0.0), 4),
         "education_score": round(education, 4),
         "certification_score": round(certification, 4),
         "behavioral_score": round(behavioral, 4),
@@ -249,5 +259,6 @@ def build_structured_features(
         "assessment_modifier": round(assessment_modifier, 2),
         "scale_boost": round(scale_boost, 2),
         "behavioral_boost": round(behavioral_boost, 2),
+        "career_keyword_scores": career_keyword_scores,
     }
 

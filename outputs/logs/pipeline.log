@@ -1357,3 +1357,159 @@
 2026-06-14 14:00:58 | src.ranking.reasoning_generator | INFO    | Generated reasoning for 1 candidates
 2026-06-14 14:00:58 | src.semantic.semantic_ranker   | INFO    | Computed semantic scores for 2 candidates (mean=0.5000, max=1.0000)
 2026-06-14 14:00:58 | src.semantic.semantic_ranker   | INFO    | Computed semantic scores for 10 candidates (mean=0.0129, max=0.0528)
+2026-06-15 17:59:22 | src.features.jd_feature_mapper | INFO    | JD parsed: 3 must-have skills, 3 preferred, experience range: [5.0, 9.0], 3 domain keywords
+2026-06-15 17:59:22 | src.features.jd_feature_mapper | INFO    | JD parsed: 0 must-have skills, 0 preferred, experience range: [5.0, 9.0], 0 domain keywords
+2026-06-15 17:59:22 | src.ingestion.data_loader      | INFO    | Loading candidates from /home/dev/Documents/RedRob project/Redrob-Codebase/data/candidates.jsonl...
+2026-06-15 17:59:22 | src.ingestion.data_loader      | INFO    | Loaded 10 candidate records
+2026-06-15 17:59:22 | src.ingestion.data_loader      | INFO    | Loading candidates from /tmp/tmpvgomxasd.jsonl...
+2026-06-15 17:59:22 | src.ingestion.data_loader      | INFO    | Loaded 5 candidate records
+2026-06-15 17:59:22 | src.ingestion.data_loader      | INFO    | Loading candidates from /tmp/tmpq9a8m5wg.jsonl...
+2026-06-15 17:59:22 | src.utils.io_utils             | WARNING | Malformed JSON at line 2: Expecting value: line 1 column 1 (char 0)
+2026-06-15 17:59:22 | src.ingestion.data_loader      | INFO    | Loaded 2 candidate records
+2026-06-15 17:59:22 | src.ranking.score_combiner     | INFO    | Combined scores for 10 candidates
+2026-06-15 17:59:22 | src.ranking.score_combiner     | INFO    | Combined scores for 10 candidates
+2026-06-15 17:59:22 | src.ranking.score_combiner     | INFO    | Combined scores for 200 candidates
+2026-06-15 17:59:22 | src.ranking.ranker             | INFO    | Ranked top 100 candidates (score range: 0.9050 – 0.5337)
+2026-06-15 17:59:22 | src.ranking.score_combiner     | INFO    | Combined scores for 200 candidates
+2026-06-15 17:59:22 | src.ranking.ranker             | INFO    | Ranked top 100 candidates (score range: 0.9050 – 0.5337)
+2026-06-15 17:59:22 | src.ranking.score_combiner     | INFO    | Combined scores for 200 candidates
+2026-06-15 17:59:22 | src.ranking.ranker             | INFO    | Ranked top 100 candidates (score range: 0.9050 – 0.5337)
+2026-06-15 17:59:22 | src.ranking.reasoning_generator | INFO    | Generated reasoning for 1 candidates
+2026-06-15 17:59:22 | src.semantic.semantic_ranker   | INFO    | Computed semantic scores for 2 candidates (mean=0.5000, max=1.0000)
+2026-06-15 17:59:22 | src.semantic.semantic_ranker   | INFO    | Computed semantic scores for 10 candidates (mean=0.0129, max=0.0528)
+2026-06-15 17:59:37 | __main__                       | INFO    | ======================================================================
+2026-06-15 17:59:37 | __main__                       | INFO    | RedRob Candidate Ranking Pipeline — Starting
+2026-06-15 17:59:37 | __main__                       | INFO    | ======================================================================
+2026-06-15 17:59:37 | __main__                       | INFO    | Phase 1: Parsing job description...
+2026-06-15 17:59:37 | src.features.jd_feature_mapper | INFO    | JD parsed: 33 must-have skills, 0 preferred, experience range: [5.0, 9.0], 12 domain keywords
+2026-06-15 17:59:37 | __main__                       | INFO    |   Must-have skills: ['a/b test', 'a/b testing', 'distributed systems', 'elasticsearch', 'embedding', 'embeddings', 'faiss', 'fine-tune', 'fine-tuning', 'git']
+2026-06-15 17:59:37 | __main__                       | INFO    |   Experience range: [5.0, 9.0]
+2026-06-15 17:59:37 | __main__                       | INFO    |   Domain keywords: ['deployment', 'distributed', 'embedding', 'evaluation', 'inference', 'matching', 'metrics', 'production', 'ranking', 'recommendation']
+2026-06-15 17:59:37 | __main__                       | INFO    | Phase 2: Loading and validating candidates...
+2026-06-15 17:59:37 | src.ingestion.data_loader      | INFO    | Loading candidates from /home/dev/Documents/RedRob project/Redrob-Codebase/data/candidates.jsonl...
+2026-06-15 17:59:37 | src.ingestion.data_loader      | INFO    | Loaded 1000 candidate records
+2026-06-15 17:59:37 | __main__                       | INFO    |   Loaded 1000 valid candidates (0 rejected) in 0.1s
+2026-06-15 17:59:37 | __main__                       | INFO    | Phase 3: Fast pre-filter (non-tech role + YOE minimum)...
+2026-06-15 17:59:37 | __main__                       | INFO    |   Fast pre-filter: 453 passed, 547 removed in 0.0s
+2026-06-15 17:59:37 | __main__                       | INFO    | Phase 4: Structured feature extraction...
+2026-06-15 17:59:38 | __main__                       | INFO    |   Extracted features for 453 candidates in 0.4s
+2026-06-15 17:59:38 | __main__                       | INFO    | Phase 5: Pre-filtering to top 5000 by structured score...
+2026-06-15 17:59:38 | __main__                       | INFO    |   Selected 453 candidates for semantic reranking
+2026-06-15 17:59:38 | __main__                       | INFO    | Phase 6: Semantic embedding and similarity...
+2026-06-15 17:59:38 | src.utils.io_utils             | INFO    | Loaded numpy array (5000, 384) from /home/dev/Documents/RedRob project/Redrob-Codebase/models/candidate_embeddings.npy
+2026-06-15 17:59:38 | src.utils.io_utils             | INFO    | Loaded numpy array (5000,) from /home/dev/Documents/RedRob project/Redrob-Codebase/models/candidate_ids.npy
+2026-06-15 17:59:38 | src.semantic.embedding_store   | WARNING | Cached embeddings count (5000) != expected (453) — invalidating cache
+2026-06-15 17:59:57 | src.semantic.embedding_generator | INFO    | Loading model from local cache: /home/dev/Documents/RedRob project/Redrob-Codebase/models/all-MiniLM-L6-v2 (forcing CPU)
+2026-06-15 17:59:58 | src.semantic.embedding_generator | INFO    | Encoding 453 texts in batches of 512
+2026-06-15 18:00:12 | src.semantic.embedding_generator | INFO    | Generated embeddings: shape (453, 384)
+2026-06-15 18:00:12 | src.utils.io_utils             | INFO    | Saved numpy array (453, 384) to /home/dev/Documents/RedRob project/Redrob-Codebase/models/candidate_embeddings.npy
+2026-06-15 18:00:12 | src.utils.io_utils             | INFO    | Saved numpy array (453,) to /home/dev/Documents/RedRob project/Redrob-Codebase/models/candidate_ids.npy
+2026-06-15 18:00:12 | src.utils.io_utils             | INFO    | Loaded numpy array (384,) from /home/dev/Documents/RedRob project/Redrob-Codebase/models/jd_embedding.npy
+2026-06-15 18:00:12 | __main__                       | INFO    |   Using cached JD embedding
+2026-06-15 18:00:12 | src.semantic.semantic_ranker   | INFO    | Computed semantic scores for 453 candidates (mean=0.5234, max=0.6332)
+2026-06-15 18:00:12 | __main__                       | INFO    |   Computing concept embeddings...
+2026-06-15 18:00:12 | src.semantic.embedding_store   | INFO    | Concept embedding 'ranking' not found at /home/dev/Documents/RedRob project/Redrob-Codebase/models/concept_ranking.npy
+2026-06-15 18:00:12 | src.semantic.embedding_generator | INFO    | Encoded concept 'ranking': shape (384,)
+2026-06-15 18:00:12 | src.semantic.embedding_generator | INFO    | Encoded concept 'evaluation': shape (384,)
+2026-06-15 18:00:12 | src.semantic.embedding_generator | INFO    | Encoded concept 'production': shape (384,)
+2026-06-15 18:00:12 | src.utils.io_utils             | INFO    | Saved numpy array (384,) to /home/dev/Documents/RedRob project/Redrob-Codebase/models/concept_ranking.npy
+2026-06-15 18:00:12 | src.utils.io_utils             | INFO    | Saved numpy array (384,) to /home/dev/Documents/RedRob project/Redrob-Codebase/models/concept_evaluation.npy
+2026-06-15 18:00:12 | src.utils.io_utils             | INFO    | Saved numpy array (384,) to /home/dev/Documents/RedRob project/Redrob-Codebase/models/concept_production.npy
+2026-06-15 18:00:12 | src.semantic.embedding_store   | INFO    | Saved 3 concept embeddings to /home/dev/Documents/RedRob project/Redrob-Codebase/models
+2026-06-15 18:00:12 | __main__                       | INFO    |   Concept embeddings computed and cached
+2026-06-15 18:00:12 | src.semantic.semantic_ranker   | INFO    | Computed concept scores for 453 candidates across 3 concepts
+2026-06-15 18:00:12 | __main__                       | INFO    |   Semantic + concept scoring complete in 34.5s
+2026-06-15 18:00:12 | __main__                       | INFO    | Phase 7: Score combination...
+2026-06-15 18:00:12 | src.ranking.score_combiner     | INFO    | Combined scores for 453 candidates
+2026-06-15 18:00:12 | __main__                       | INFO    | Phase 8: Detailed honeypot on top 300 post-scoring...
+2026-06-15 18:00:12 | __main__                       | INFO    |   Detailed honeypot: 222 survived from top 300, in 0.0s
+2026-06-15 18:00:12 | __main__                       | INFO    | Phase 9: Ranking and selection...
+2026-06-15 18:00:12 | src.ranking.ranker             | INFO    | Ranked top 100 candidates (score range: 0.6047 – 0.3802)
+2026-06-15 18:00:12 | __main__                       | INFO    | Phase 10: Generating reasoning...
+2026-06-15 18:00:12 | src.ranking.reasoning_generator | INFO    | Generated reasoning for 100 candidates
+2026-06-15 18:00:12 | __main__                       | INFO    | Phase 11: Building submission CSV...
+2026-06-15 18:00:12 | src.ranking.submission_builder | INFO    | Submission saved: /home/dev/Documents/RedRob project/Redrob-Codebase/outputs/submission.csv (100 rows)
+2026-06-15 18:00:12 | src.ranking.submission_builder | INFO    | Debug candidate CSV saved: /home/dev/Documents/RedRob project/Redrob-Codebase/outputs/debug/candidate_debug.csv (100 rows)
+2026-06-15 18:00:12 | src.ranking.submission_builder | INFO    | Full scores saved: /home/dev/Documents/RedRob project/Redrob-Codebase/outputs/candidate_scores.csv (453 rows)
+2026-06-15 18:00:12 | __main__                       | INFO    | ======================================================================
+2026-06-15 18:00:12 | __main__                       | INFO    | Pipeline complete in 35.1s
+2026-06-15 18:00:12 | __main__                       | INFO    | Submission: /home/dev/Documents/RedRob project/Redrob-Codebase/outputs/submission.csv
+2026-06-15 18:00:12 | __main__                       | INFO    | Top candidate: CAND_0000031 (score: 0.6047)
+2026-06-15 18:00:12 | __main__                       | INFO    | 100th candidate: CAND_0000534 (score: 0.3802)
+2026-06-15 18:00:12 | __main__                       | INFO    | ======================================================================
+2026-06-15 18:01:15 | src.features.jd_feature_mapper | INFO    | JD parsed: 3 must-have skills, 3 preferred, experience range: [5.0, 9.0], 3 domain keywords
+2026-06-15 18:01:15 | src.features.jd_feature_mapper | INFO    | JD parsed: 0 must-have skills, 0 preferred, experience range: [5.0, 9.0], 0 domain keywords
+2026-06-15 18:01:15 | src.ingestion.data_loader      | INFO    | Loading candidates from /home/dev/Documents/RedRob project/Redrob-Codebase/data/candidates.jsonl...
+2026-06-15 18:01:15 | src.ingestion.data_loader      | INFO    | Loaded 10 candidate records
+2026-06-15 18:01:15 | src.ingestion.data_loader      | INFO    | Loading candidates from /tmp/tmptwb8j8u7.jsonl...
+2026-06-15 18:01:15 | src.ingestion.data_loader      | INFO    | Loaded 5 candidate records
+2026-06-15 18:01:15 | src.ingestion.data_loader      | INFO    | Loading candidates from /tmp/tmpxvdsaj98.jsonl...
+2026-06-15 18:01:15 | src.utils.io_utils             | WARNING | Malformed JSON at line 2: Expecting value: line 1 column 1 (char 0)
+2026-06-15 18:01:15 | src.ingestion.data_loader      | INFO    | Loaded 2 candidate records
+2026-06-15 18:01:15 | src.ranking.score_combiner     | INFO    | Combined scores for 10 candidates
+2026-06-15 18:01:15 | src.ranking.score_combiner     | INFO    | Combined scores for 10 candidates
+2026-06-15 18:01:15 | src.ranking.score_combiner     | INFO    | Combined scores for 200 candidates
+2026-06-15 18:01:15 | src.ranking.ranker             | INFO    | Ranked top 100 candidates (score range: 0.9050 – 0.5337)
+2026-06-15 18:01:15 | src.ranking.score_combiner     | INFO    | Combined scores for 200 candidates
+2026-06-15 18:01:15 | src.ranking.ranker             | INFO    | Ranked top 100 candidates (score range: 0.9050 – 0.5337)
+2026-06-15 18:01:15 | src.ranking.score_combiner     | INFO    | Combined scores for 200 candidates
+2026-06-15 18:01:15 | src.ranking.ranker             | INFO    | Ranked top 100 candidates (score range: 0.9050 – 0.5337)
+2026-06-15 18:01:15 | src.ranking.reasoning_generator | INFO    | Generated reasoning for 1 candidates
+2026-06-15 18:01:15 | src.semantic.semantic_ranker   | INFO    | Computed semantic scores for 2 candidates (mean=0.5000, max=1.0000)
+2026-06-15 18:01:15 | src.semantic.semantic_ranker   | INFO    | Computed semantic scores for 10 candidates (mean=0.0129, max=0.0528)
+2026-06-15 18:02:09 | __main__                       | INFO    | ======================================================================
+2026-06-15 18:02:09 | __main__                       | INFO    | RedRob Candidate Ranking Pipeline — Starting
+2026-06-15 18:02:09 | __main__                       | INFO    | ======================================================================
+2026-06-15 18:02:09 | __main__                       | INFO    | Phase 1: Parsing job description...
+2026-06-15 18:02:09 | src.features.jd_feature_mapper | INFO    | JD parsed: 33 must-have skills, 0 preferred, experience range: [5.0, 9.0], 12 domain keywords
+2026-06-15 18:02:09 | __main__                       | INFO    |   Must-have skills: ['a/b test', 'a/b testing', 'distributed systems', 'elasticsearch', 'embedding', 'embeddings', 'faiss', 'fine-tune', 'fine-tuning', 'git']
+2026-06-15 18:02:09 | __main__                       | INFO    |   Experience range: [5.0, 9.0]
+2026-06-15 18:02:09 | __main__                       | INFO    |   Domain keywords: ['deployment', 'distributed', 'embedding', 'evaluation', 'inference', 'matching', 'metrics', 'production', 'ranking', 'recommendation']
+2026-06-15 18:02:09 | __main__                       | INFO    | Phase 2: Loading and validating candidates...
+2026-06-15 18:02:09 | src.ingestion.data_loader      | INFO    | Loading candidates from /home/dev/Documents/RedRob project/Redrob-Codebase/data/candidates.jsonl...
+2026-06-15 18:02:22 | src.ingestion.data_loader      | INFO    | Loaded 100000 candidate records
+2026-06-15 18:02:28 | __main__                       | INFO    |   Loaded 100000 valid candidates (0 rejected) in 18.8s
+2026-06-15 18:02:28 | __main__                       | INFO    | Phase 3: Fast pre-filter (non-tech role + YOE minimum)...
+2026-06-15 18:02:28 | __main__                       | INFO    |   Fast pre-filter: 44599 passed, 55401 removed in 0.2s
+2026-06-15 18:02:28 | __main__                       | INFO    | Phase 4: Structured feature extraction...
+2026-06-15 18:03:12 | __main__                       | INFO    |   Extracted features for 44599 candidates in 43.5s
+2026-06-15 18:03:12 | __main__                       | INFO    | Phase 5: Pre-filtering to top 5000 by structured score...
+2026-06-15 18:03:12 | __main__                       | INFO    |   Selected 5000 candidates for semantic reranking
+2026-06-15 18:03:12 | __main__                       | INFO    | Phase 6: Semantic embedding and similarity...
+2026-06-15 18:03:12 | src.utils.io_utils             | INFO    | Loaded numpy array (453, 384) from /home/dev/Documents/RedRob project/Redrob-Codebase/models/candidate_embeddings.npy
+2026-06-15 18:03:12 | src.utils.io_utils             | INFO    | Loaded numpy array (453,) from /home/dev/Documents/RedRob project/Redrob-Codebase/models/candidate_ids.npy
+2026-06-15 18:03:12 | src.semantic.embedding_store   | WARNING | Cached embeddings count (453) != expected (5000) — invalidating cache
+2026-06-15 18:03:20 | src.semantic.embedding_generator | INFO    | Loading model from local cache: /home/dev/Documents/RedRob project/Redrob-Codebase/models/all-MiniLM-L6-v2 (forcing CPU)
+2026-06-15 18:03:20 | src.semantic.embedding_generator | INFO    | Encoding 5000 texts in batches of 512
+2026-06-15 18:05:02 | src.semantic.embedding_generator | INFO    | Generated embeddings: shape (5000, 384)
+2026-06-15 18:05:02 | src.utils.io_utils             | INFO    | Saved numpy array (5000, 384) to /home/dev/Documents/RedRob project/Redrob-Codebase/models/candidate_embeddings.npy
+2026-06-15 18:05:02 | src.utils.io_utils             | INFO    | Saved numpy array (5000,) to /home/dev/Documents/RedRob project/Redrob-Codebase/models/candidate_ids.npy
+2026-06-15 18:05:02 | src.utils.io_utils             | INFO    | Loaded numpy array (384,) from /home/dev/Documents/RedRob project/Redrob-Codebase/models/jd_embedding.npy
+2026-06-15 18:05:02 | __main__                       | INFO    |   Using cached JD embedding
+2026-06-15 18:05:02 | src.semantic.semantic_ranker   | INFO    | Computed semantic scores for 5000 candidates (mean=0.5318, max=0.6412)
+2026-06-15 18:05:02 | __main__                       | INFO    |   Computing concept embeddings...
+2026-06-15 18:05:02 | src.utils.io_utils             | INFO    | Loaded numpy array (384,) from /home/dev/Documents/RedRob project/Redrob-Codebase/models/concept_ranking.npy
+2026-06-15 18:05:02 | src.utils.io_utils             | INFO    | Loaded numpy array (384,) from /home/dev/Documents/RedRob project/Redrob-Codebase/models/concept_evaluation.npy
+2026-06-15 18:05:02 | src.utils.io_utils             | INFO    | Loaded numpy array (384,) from /home/dev/Documents/RedRob project/Redrob-Codebase/models/concept_production.npy
+2026-06-15 18:05:02 | src.semantic.embedding_store   | INFO    | Loaded 3 concept embeddings from /home/dev/Documents/RedRob project/Redrob-Codebase/models
+2026-06-15 18:05:02 | __main__                       | INFO    |   Using cached concept embeddings
+2026-06-15 18:05:02 | src.semantic.semantic_ranker   | INFO    | Computed concept scores for 5000 candidates across 3 concepts
+2026-06-15 18:05:02 | __main__                       | INFO    |   Semantic + concept scoring complete in 110.4s
+2026-06-15 18:05:02 | __main__                       | INFO    | Phase 7: Score combination...
+2026-06-15 18:05:02 | src.ranking.score_combiner     | INFO    | Combined scores for 5000 candidates
+2026-06-15 18:05:02 | __main__                       | INFO    | Phase 8: Detailed honeypot on top 300 post-scoring...
+2026-06-15 18:05:02 | __main__                       | INFO    |   Detailed honeypot: 300 survived from top 300, in 0.0s
+2026-06-15 18:05:02 | __main__                       | INFO    | Phase 9: Ranking and selection...
+2026-06-15 18:05:02 | src.ranking.ranker             | INFO    | Ranked top 100 candidates (score range: 0.7739 – 0.5977)
+2026-06-15 18:05:02 | __main__                       | INFO    | Phase 10: Generating reasoning...
+2026-06-15 18:05:02 | src.ranking.reasoning_generator | INFO    | Generated reasoning for 100 candidates
+2026-06-15 18:05:02 | __main__                       | INFO    | Phase 11: Building submission CSV...
+2026-06-15 18:05:02 | src.ranking.submission_builder | INFO    | Submission saved: /home/dev/Documents/RedRob project/Redrob-Codebase/outputs/submission.csv (100 rows)
+2026-06-15 18:05:02 | src.ranking.submission_builder | INFO    | Debug candidate CSV saved: /home/dev/Documents/RedRob project/Redrob-Codebase/outputs/debug/candidate_debug.csv (100 rows)
+2026-06-15 18:05:03 | src.ranking.submission_builder | INFO    | Full scores saved: /home/dev/Documents/RedRob project/Redrob-Codebase/outputs/candidate_scores.csv (5000 rows)
+2026-06-15 18:05:03 | __main__                       | INFO    | ======================================================================
+2026-06-15 18:05:03 | __main__                       | INFO    | Pipeline complete in 173.4s
+2026-06-15 18:05:03 | __main__                       | INFO    | Submission: /home/dev/Documents/RedRob project/Redrob-Codebase/outputs/submission.csv
+2026-06-15 18:05:03 | __main__                       | INFO    | Top candidate: CAND_0018499 (score: 0.7739)
+2026-06-15 18:05:03 | __main__                       | INFO    | 100th candidate: CAND_0018722 (score: 0.5977)
+2026-06-15 18:05:03 | __main__                       | INFO    | ======================================================================

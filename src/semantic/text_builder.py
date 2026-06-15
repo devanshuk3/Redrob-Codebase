@@ -39,10 +39,19 @@ def build_candidate_text(candidate: Candidate, max_chars: int = 1500) -> str:
     if candidate.summary:
         parts.append(candidate.summary)
 
-    # Skills — comma-separated list
-    skill_names = [s.name for s in candidate.skills if s.name]
-    if skill_names:
-        parts.append("Skills: " + ", ".join(skill_names))
+    # Skills — enhanced serialization with proficiency/duration for advanced skills
+    skill_parts = []
+    for s in candidate.skills:
+        if not s.name:
+            continue
+        prof = getattr(s, "proficiency", "") or ""
+        dur = getattr(s, "duration_months", 0) or 0
+        if prof.lower() in ("advanced", "expert") and dur >= 12:
+            skill_parts.append(f"{s.name} (advanced, {dur} months)")
+        else:
+            skill_parts.append(s.name)
+    if skill_parts:
+        parts.append("Skills: " + ", ".join(skill_parts))
 
     # Career descriptions — most recent first
     for career in candidate.career_history[:3]:  # top 3 roles

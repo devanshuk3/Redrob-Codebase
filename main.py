@@ -2,16 +2,18 @@
 """
 RedRob Candidate Ranking Pipeline — Single Entrypoint.
 
-Pipeline flow (CHANGE 5 — pre-filtering):
+Pipeline flow (MERGED — notebook improvements integrated):
   1. Load & validate candidates
-  2. Honeypot quality filtering → ~50k-70k survivors
-  3. Parse JD dynamically (CHANGE 1)
+  2. Fast pre-filter — cheap checks (non-tech role, YOE hard minimum)
+  3. Parse JD dynamically
   4. Structured feature extraction → top 5k by structured score
   5. Semantic embedding & reranking on top 5k only
-  6. Final score combination (CHANGE 7 — rebalanced)
-  7. Top 100 selection
-  8. Reasoning generation
-  9. Submission CSV output + validation
+  6. Concept embedding computation & scoring
+  7. Final score combination (with concept scores)
+  8. Detailed honeypot on top 300 only
+  9. Top 100 selection
+  10. Reasoning generation
+  11. Submission CSV output + validation
 
 Usage:
     python main.py
@@ -35,19 +37,37 @@ from src.utils.logging_utils import get_logger
 from src.ingestion.data_loader import load_candidates
 from src.ingestion.schema_validator import validate_record
 from src.ingestion.candidate_parser import Candidate, parse_candidate
-from src.ingestion.honeypot_filter import compute_quality_score
+from src.ingestion.honeypot_filter import compute_quality_score, _check_non_tech_role
 from src.features.jd_feature_mapper import parse_job_description, JDFeatures
 from src.features.feature_builder import build_structured_features
 from src.semantic.text_builder import build_candidate_text, build_jd_text
 from src.semantic.embedding_generator import EmbeddingGenerator
 from src.semantic.embedding_store import EmbeddingStore
-from src.semantic.semantic_ranker import compute_semantic_scores
+from src.semantic.semantic_ranker import compute_semantic_scores, compute_concept_scores
 from src.ranking.score_combiner import combine_scores
 from src.ranking.ranker import rank_candidates
 from src.ranking.reasoning_generator import generate_reasoning
 from src.ranking.submission_builder import build_submission, save_full_scores, build_debug_csv
+from src.utils.constants import (
+    RANKING_CONCEPT_TEXT, EVALUATION_CONCEPT_TEXT, PRODUCTION_CONCEPT_TEXT,
+)
 
 logger = get_logger(__name__)
+
+
+def fast_prefilter(candidate: Candidate, min_yoe: float = 3.0) -> bool:
+    """
+    Returns True if candidate passes fast pre-filter (should be kept).
+
+    Cheap checks only:
+    - Not a non-tech role
+    - Meets minimum years of experience threshold
+    """
+    if _check_non_tech_role(candidate):
+        return False
+    if candidate.years_of_experience < min_yoe:
+        return False
+    return True
 
 
 def main():
@@ -105,27 +125,20 @@ def main():
         f"({invalid_count} rejected) in {time.time() - t0:.1f}s"
     )
 
-    # 4. Quality Filtering (CHANGE 6 — strengthened honeypot)
-    logger.info("Phase 3: Quality filtering (honeypot detection)...")
+    # 4. Fast Pre-Filter (TASK E — cheap checks only)
+    logger.info("Phase 3: Fast pre-filter (non-tech role + YOE minimum)...")
     t0 = time.time()
-    quality_scores: Dict[str, float] = {}
-    filtered_candidates: List[Candidate] = []
-
-    for candidate in valid_candidates:
-        q_score = compute_quality_score(candidate)
-        candidate.quality_score = q_score
-        quality_scores[candidate.candidate_id] = q_score
-
-        if q_score >= Config.QUALITY_FILTER_THRESHOLD:
-            filtered_candidates.append(candidate)
-
+    min_yoe = Config.EXPERIENCE_IDEAL_MIN - 2  # 5 - 2 = 3
+    filtered_candidates: List[Candidate] = [
+        c for c in valid_candidates if fast_prefilter(c, min_yoe=min_yoe)
+    ]
     removed = len(valid_candidates) - len(filtered_candidates)
     logger.info(
-        f"  Quality filter: {len(filtered_candidates)} passed, "
+        f"  Fast pre-filter: {len(filtered_candidates)} passed, "
         f"{removed} removed in {time.time() - t0:.1f}s"
     )
 
-    # 5. Structured Feature Extraction (CHANGE 8 — expanded)
+    # 5. Structured Feature Extraction
     logger.info("Phase 4: Structured feature extraction...")
     t0 = time.time()
     candidate_features: Dict[str, Dict[str, Any]] = {}
@@ -136,7 +149,7 @@ def main():
 
     logger.info(f"  Extracted features for {len(candidate_features)} candidates in {time.time() - t0:.1f}s")
 
-    # 6. Pre-Filter: Select Top K by Structured Score (CHANGE 5)
+    # 6. Pre-Filter: Select Top K by Structured Score
     logger.info(f"Phase 5: Pre-filtering to top {Config.STRUCTURED_TOP_K} by structured score...")
     sorted_by_structured = sorted(
         candidate_features.items(),
@@ -197,30 +210,92 @@ def main():
         jd_embedding, candidate_embeddings, candidate_ids_list
     )
 
-    logger.info(f"  Semantic scoring complete in {time.time() - t0:.1f}s")
+    # Concept embeddings (TASK A)
+    logger.info("  Computing concept embeddings...")
+    concept_embeddings = store.load_concept_embeddings()
+    if concept_embeddings is None:
+        if embedder.model is None:
+            embedder.load_model()
+        concept_texts = {
+            "ranking": RANKING_CONCEPT_TEXT,
+            "evaluation": EVALUATION_CONCEPT_TEXT,
+            "production": PRODUCTION_CONCEPT_TEXT,
+        }
+        concept_embeddings = embedder.encode_concept_texts(concept_texts)
+        store.save_concept_embeddings(concept_embeddings)
+        logger.info("  Concept embeddings computed and cached")
+    else:
+        logger.info("  Using cached concept embeddings")
 
-    # 8. Score Combination (CHANGE 7 — rebalanced)
+    # Compute concept scores for all top-k candidates
+    concept_scores = compute_concept_scores(
+        concept_embeddings, candidate_embeddings, candidate_ids_list
+    )
+
+    logger.info(f"  Semantic + concept scoring complete in {time.time() - t0:.1f}s")
+
+    # 8. Score Combination (with concept scores)
     logger.info("Phase 7: Score combination...")
 
     # Only combine scores for candidates that went through semantic
     top_k_features = {cid: candidate_features[cid] for cid in top_k_ids}
-    top_k_quality = {cid: quality_scores[cid] for cid in top_k_ids}
+    # Use default quality score for now (detailed honeypot runs post-scoring)
+    top_k_quality = {cid: 0.5 for cid in top_k_ids}
 
     scored_candidates = combine_scores(
-        top_k_features, semantic_scores, top_k_quality
+        top_k_features, semantic_scores, top_k_quality,
+        concept_scores=concept_scores,
     )
 
-    # 9. Rank & Select Top 100
-    logger.info("Phase 8: Ranking and selection...")
-    ranked = rank_candidates(scored_candidates, top_n=Config.TOP_N)
+    # 9. Detailed Honeypot on Top 300 (TASK E — staged)
+    logger.info("Phase 8: Detailed honeypot on top 300 post-scoring...")
+    t0 = time.time()
 
-    # 10. Reasoning Generation (CHANGE 9 — template-based)
-    logger.info("Phase 9: Generating reasoning...")
+    # Sort by final_score, take top 300
+    scored_candidates.sort(key=lambda x: x["final_score"], reverse=True)
+    top_300 = scored_candidates[:300]
+    candidate_map_all = {c.candidate_id: c for c in top_k_candidates}
+
+    # Run detailed quality scoring on top 300
+    quality_survivors = []
+    for entry in top_300:
+        cid = entry["candidate_id"]
+        candidate = candidate_map_all.get(cid)
+        if candidate:
+            q_score = compute_quality_score(candidate)
+            candidate.quality_score = q_score
+            entry["quality_score"] = q_score
+            if q_score >= Config.QUALITY_FILTER_THRESHOLD:
+                quality_survivors.append(entry)
+        else:
+            quality_survivors.append(entry)
+
+    # If fewer than 100 survive from top 300, add more from remaining
+    if len(quality_survivors) < Config.TOP_N:
+        remaining = scored_candidates[300:]
+        for entry in remaining:
+            if len(quality_survivors) >= Config.TOP_N:
+                break
+            entry["quality_score"] = 0.5  # default for non-honeypot-checked
+            quality_survivors.append(entry)
+
+    removed_honeypot = len(top_300) - len([e for e in quality_survivors if e in top_300])
+    logger.info(
+        f"  Detailed honeypot: {len(quality_survivors)} survived from top 300, "
+        f"in {time.time() - t0:.1f}s"
+    )
+
+    # 10. Rank & Select Top 100
+    logger.info("Phase 9: Ranking and selection...")
+    ranked = rank_candidates(quality_survivors, top_n=Config.TOP_N)
+
+    # 11. Reasoning Generation
+    logger.info("Phase 10: Generating reasoning...")
     candidate_map = {c.candidate_id: c for c in top_k_candidates}
     ranked = generate_reasoning(ranked, candidate_map, jd_features)
 
-    # 11. Build & Validate Submission
-    logger.info("Phase 10: Building submission CSV...")
+    # 12. Build & Validate Submission
+    logger.info("Phase 11: Building submission CSV...")
     df = build_submission(ranked, output_path=args.output)
 
     # Generate debug CSV with original details

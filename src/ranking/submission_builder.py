@@ -273,6 +273,13 @@ def build_debug_csv(
             "scale_boost": round(entry.get("scale_boost", 1.0), 2),
             "behavioral_boost": round(entry.get("behavioral_boost", 1.0), 2),
 
+            # New columns (TASK A, B, G — concept scores, career keywords, consulting ratio)
+            "career_keyword_scores": str(entry.get("career_keyword_scores", {})),
+            "ranking_concept": round(entry.get("ranking_concept", 0.0), 6),
+            "evaluation_concept": round(entry.get("evaluation_concept", 0.0), 6),
+            "production_concept": round(entry.get("production_concept", 0.0), 6),
+            "consulting_ratio": round(entry.get("consulting_ratio", 0.0), 4),
+
             # Feature Importance
             "top_positive_features": top_pos,
             "top_negative_features": top_neg,
