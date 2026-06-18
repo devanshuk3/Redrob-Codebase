@@ -78,12 +78,14 @@ class EmbeddingStore:
         """
         Save concept embeddings to disk.
         Each concept is saved as a separate .npy file in models/ directory.
-        Filenames: concept_{name}.npy (e.g., concept_ranking.npy).
+        Filenames: concept_{name}{model_slug}.npy.
         """
         import os
         models_dir = os.path.dirname(self.jd_path)
+        base_jd = os.path.basename(self.jd_path)
+        model_slug = base_jd.replace("jd_embedding", "").replace(".npy", "")
         for name, emb in concept_embs.items():
-            path = os.path.join(models_dir, f"concept_{name}.npy")
+            path = os.path.join(models_dir, f"concept_{name}{model_slug}.npy")
             save_numpy(path, emb)
         logger.info(f"Saved {len(concept_embs)} concept embeddings to {models_dir}")
 
@@ -94,10 +96,12 @@ class EmbeddingStore:
         """
         import os
         models_dir = os.path.dirname(self.jd_path)
+        base_jd = os.path.basename(self.jd_path)
+        model_slug = base_jd.replace("jd_embedding", "").replace(".npy", "")
         concept_names = ["ranking", "evaluation", "production"]
         result = {}
         for name in concept_names:
-            path = os.path.join(models_dir, f"concept_{name}.npy")
+            path = os.path.join(models_dir, f"concept_{name}{model_slug}.npy")
             emb = load_numpy(path)
             if emb is None:
                 logger.info(f"Concept embedding '{name}' not found at {path}")

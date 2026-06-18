@@ -28,13 +28,13 @@ class Config:
     DEBUG_DIR = os.path.join(OUTPUTS_DIR, "debug")
     DEBUG_FILE = os.path.join(DEBUG_DIR, "candidate_debug.csv")
 
-    EMBEDDINGS_FILE = os.path.join(MODELS_DIR, "candidate_embeddings.npy")
-    EMBEDDING_IDS_FILE = os.path.join(MODELS_DIR, "candidate_ids.npy")
-    JD_EMBEDDING_FILE = os.path.join(MODELS_DIR, "jd_embedding.npy")
+    EMBEDDINGS_FILE = os.path.join(MODELS_DIR, "candidate_embeddings_bge.npy")
+    EMBEDDING_IDS_FILE = os.path.join(MODELS_DIR, "candidate_ids_bge.npy")
+    JD_EMBEDDING_FILE = os.path.join(MODELS_DIR, "jd_embedding_bge.npy")
 
     # Model
-    SENTENCE_MODEL_NAME = "all-MiniLM-L6-v2"
-    SENTENCE_MODEL_DIR = os.path.join(MODELS_DIR, "all-MiniLM-L6-v2")
+    SENTENCE_MODEL_NAME = "BAAI/bge-small-en-v1.5"
+    SENTENCE_MODEL_DIR = os.path.join(MODELS_DIR, "bge-small-en-v1.5")
     EMBEDDING_BATCH_SIZE = 512
 
     # Final Score Weights (TASK 11 — rebalanced)
