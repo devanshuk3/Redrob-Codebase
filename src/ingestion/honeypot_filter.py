@@ -404,12 +404,112 @@ def compute_trap_probability(candidate: Candidate) -> float:
     return round(min(1.0, max(0.0, prob)), 4)
 
 
+def is_honeypot_candidate(candidate: Candidate) -> bool:
+    """
+    Check if a candidate has physically/logically impossible attributes.
+    Returns True if the profile is identified as a honeypot/trap candidate.
+    """
+    # 1. Parse education into Bachelor's, Master's, PhD
+    bachelors = []
+    masters = []
+    phds = []
+    all_degrees = []
+    
+    for edu in candidate.education:
+        if not edu.start_year or not edu.end_year:
+            continue
+        try:
+            start = int(edu.start_year)
+            end = int(edu.end_year)
+        except (ValueError, TypeError):
+            continue
+        
+        deg_lower = (edu.degree or "").lower()
+        inst_lower = (edu.institution or "").lower()
+        
+        level = None
+        if any(w in deg_lower for w in ["bachelor", "b.tech", "b.e", "b.sc", "b.s", "b.a", "bba", "bca", "b.com"]):
+            level = "bachelor"
+            bachelors.append((start, end, edu.degree, inst_lower))
+        elif any(w in deg_lower for w in ["master", "m.tech", "m.e", "m.sc", "m.s", "mba", "mca", "pgdm"]):
+            level = "master"
+            masters.append((start, end, edu.degree, inst_lower))
+        elif any(w in deg_lower for w in ["phd", "ph.d", "doctor", "doctorate"]):
+            level = "phd"
+            phds.append((start, end, edu.degree, inst_lower))
+            
+        all_degrees.append((start, end, edu.degree, inst_lower, level))
+        
+    # Check end-year chronology errors (undeniable logical error: higher degree completed before lower degree)
+    for b_start, b_end, b_name, b_inst in bachelors:
+        for m_start, m_end, m_name, m_inst in masters:
+            if m_end < b_end - 1:
+                return True
+        for p_start, p_end, p_name, p_inst in phds:
+            if p_end < b_end - 1:
+                return True
+    for m_start, m_end, m_name, m_inst in masters:
+        for p_start, p_end, p_name, p_inst in phds:
+            if p_end < m_end - 1:
+                return True
+                
+    # Check start-year chronology errors (undeniable logical error: higher degree starts before lower degree)
+    for b_start, b_end, b_name, b_inst in bachelors:
+        for m_start, m_end, m_name, m_inst in masters:
+            if m_start < b_start - 1 and b_inst != m_inst:
+                return True
+        for p_start, p_end, p_name, p_inst in phds:
+            if p_start < b_start - 1 and b_inst != p_inst:
+                return True
+    for m_start, m_end, m_name, m_inst in masters:
+        for p_start, p_end, p_name, p_inst in phds:
+            if p_start < m_start - 1 and m_inst != p_inst:
+                return True
+
+    # Check overlapping Bachelor's degrees from different institutions (or same with >1 year overlap)
+    if len(bachelors) > 1:
+        for i in range(len(bachelors)):
+            for j in range(i + 1, len(bachelors)):
+                s1, e1, n1, inst1 = bachelors[i]
+                s2, e2, n2, inst2 = bachelors[j]
+                overlap = max(0, min(e1, e2) - max(s1, s2))
+                if overlap > 1.0:
+                    return True
+                    
+    # Check duplicate degrees at same institution
+    if len(all_degrees) > 1:
+        from rapidfuzz import fuzz
+        for i in range(len(all_degrees)):
+            for j in range(i + 1, len(all_degrees)):
+                s1, e1, n1, inst1, l1 = all_degrees[i]
+                s2, e2, n2, inst2, l2 = all_degrees[j]
+                if inst1 and inst2 and inst1 == inst2:
+                    ratio = fuzz.ratio(n1.lower(), n2.lower())
+                    if ratio > 85:
+                        return True
+                        
+    # Check skills duration anomaly (Expert/Advanced with 0 months)
+    expert_zero_count = 0
+    for skill in candidate.skills:
+        dur = getattr(skill, "duration_months", None)
+        prof = getattr(skill, "proficiency", None)
+        if prof in ["expert", "advanced"] and dur == 0:
+            expert_zero_count += 1
+    if expert_zero_count >= 5:
+        return True
+        
+    return False
+
+
 def compute_quality_score(candidate: Candidate) -> float:
     """Compute quality score per candidate using unified issue registry."""
     if _check_non_tech_role(candidate):
         return 0.0
 
     if candidate.years_of_experience >= 1.0 and not _has_relevant_tech_experience(candidate):
+        return 0.0
+
+    if is_honeypot_candidate(candidate):
         return 0.0
 
     issues = get_candidate_issues(candidate)
@@ -436,6 +536,9 @@ def _earliest_graduation_year(candidate: Candidate) -> Optional[int]:
     """Find the earliest graduation year from education history."""
     years = []
     for edu in candidate.education:
-        if edu.end_year and isinstance(edu.end_year, (int, float)):
-            years.append(int(edu.end_year))
+        if edu.end_year:
+            try:
+                years.append(int(str(edu.end_year).strip()))
+            except (ValueError, TypeError):
+                continue
     return min(years) if years else None

@@ -307,7 +307,9 @@ class TestFeatureBuilder:
         # All numeric scores should be 0-1
         non_numeric_keys = ("candidate_id", "scale_boost", "behavioral_boost",
                             "assessment_modifier", "experience_distance",
-                            "career_keyword_scores")
+                            "career_keyword_scores", "country", "location",
+                            "willing_to_relocate", "open_to_work", "last_active_date",
+                            "notice_period_days")
         for key, val in features.items():
             if key not in non_numeric_keys:
                 assert 0.0 <= val <= 1.0, f"{key} = {val} is out of [0, 1]"

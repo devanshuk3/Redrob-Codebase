@@ -274,6 +274,28 @@ def main():
             q_score = compute_quality_score(candidate)
             candidate.quality_score = q_score
             entry["quality_score"] = q_score
+            
+            # Recalculate final_score using the actual q_score
+            semantic = entry["semantic_score"]
+            structured = entry["structured_score"]
+            behavioral = entry["behavioral_score"]
+            base_initial = (
+                0.20 * semantic
+                + 0.55 * structured
+                + 0.15 * behavioral
+                + 0.10 * 0.5
+            )
+            base_new = (
+                0.20 * semantic
+                + 0.55 * structured
+                + 0.15 * behavioral
+                + 0.10 * q_score
+            )
+            if base_initial > 0:
+                entry["final_score"] = round(entry["final_score"] * (base_new / base_initial), 6)
+            else:
+                entry["final_score"] = 0.0
+                
             if q_score >= Config.QUALITY_FILTER_THRESHOLD:
                 quality_survivors.append(entry)
         else:

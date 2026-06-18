@@ -287,5 +287,12 @@ def build_structured_features(
         "scale_boost": round(scale_boost, 2),
         "behavioral_boost": round(behavioral_boost, 2),
         "career_keyword_scores": career_keyword_scores,
+        "country": candidate.country,
+        "location": candidate.location,
+        "willing_to_relocate": candidate.redrob_signals.willing_to_relocate,
+        "open_to_work": candidate.redrob_signals.open_to_work_flag,
+        "recruiter_response_rate": candidate.redrob_signals.recruiter_response_rate,
+        "last_active_date": candidate.redrob_signals.last_active_date,
+        "notice_period_days": candidate.redrob_signals.notice_period_days,
     }
 

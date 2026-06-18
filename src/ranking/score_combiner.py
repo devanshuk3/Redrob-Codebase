@@ -92,7 +92,58 @@ def combine_scores(
         scale_boost = features.get("scale_boost", 1.0)
         behavioral_boost = features.get("behavioral_boost", 1.0)
         
-        final_score = final_score * domain_boost * scale_boost * behavioral_boost
+        # 5. Apply location and availability multipliers (to penalize unresponsive or international candidates)
+        availability_mult = 1.0
+        
+        last_active_date = features.get("last_active_date", "")
+        days_inactive = 0
+        if last_active_date:
+            try:
+                parts = last_active_date.split("-")
+                if len(parts) == 3:
+                    y, m, d = int(parts[0]), int(parts[1]), int(parts[2])
+                    from datetime import date
+                    ref_date = max(date.today(), date(2026, 6, 18))
+                    days_inactive = (ref_date - date(y, m, d)).days
+            except:
+                pass
+                
+        open_to_work = features.get("open_to_work", True)
+        if not open_to_work:
+            availability_mult *= 0.85
+            
+        resp_rate = features.get("recruiter_response_rate", 1.0)
+        if resp_rate < 0.10:
+            availability_mult *= 0.70
+        elif resp_rate < 0.20:
+            availability_mult *= 0.85
+            
+        if days_inactive > 180:
+            availability_mult *= 0.70
+        elif days_inactive > 120:
+            availability_mult *= 0.85
+        elif days_inactive > 90:
+            availability_mult *= 0.95
+            
+        if days_inactive > 150 and resp_rate < 0.15:
+            availability_mult *= 0.80
+            
+        location_mult = 1.0
+        country = (features.get("country") or "").strip().lower()
+        willing_to_relocate = features.get("willing_to_relocate", True)
+        city_loc = (features.get("location") or "").strip().lower()
+        
+        if country and country != "india":
+            if not willing_to_relocate:
+                location_mult = 0.0
+            else:
+                location_mult = 0.20
+        else:
+            is_preferred_city = any(city in city_loc for city in ["pune", "noida", "delhi", "ncr", "gurgaon", "ghaziabad", "faridabad"])
+            if not is_preferred_city and not willing_to_relocate:
+                location_mult = 0.50
+                
+        final_score = final_score * domain_boost * scale_boost * behavioral_boost * availability_mult * location_mult
 
         entry = {
             "candidate_id": cid,
@@ -101,6 +152,8 @@ def combine_scores(
             "structured_score": structured,
             "behavioral_score": behavioral,
             "quality_score": quality,
+            "availability_mult": round(availability_mult, 4),
+            "location_mult": round(location_mult, 4),
             # Pass through all sub-scores for reasoning and debug
             **{k: v for k, v in features.items() if k not in ("candidate_id", "structured_score", "behavioral_score")},
         }
