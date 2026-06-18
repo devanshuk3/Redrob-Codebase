@@ -8,6 +8,7 @@ import os
 from typing import Any, Dict, Generator, List, Optional
 
 import numpy as np
+import orjson
 
 from .logging_utils import get_logger
 
@@ -22,14 +23,14 @@ def stream_jsonl(filepath: str) -> Generator[Dict[str, Any], None, None]:
     if not os.path.exists(filepath):
         raise FileNotFoundError(f"JSONL file not found: {filepath}")
 
-    with open(filepath, "r", encoding="utf-8") as f:
+    with open(filepath, "rb") as f:
         for line_num, line in enumerate(f, start=1):
             line = line.strip()
             if not line:
                 continue
             try:
-                yield json.loads(line)
-            except json.JSONDecodeError as e:
+                yield orjson.loads(line)
+            except orjson.JSONDecodeError as e:
                 logger.warning(f"Malformed JSON at line {line_num}: {e}")
                 continue
 

@@ -11,8 +11,9 @@ def parse_date(date_str: Optional[str]) -> Optional[date]:
     if not date_str:
         return None
     try:
-        return datetime.strptime(str(date_str).strip(), "%Y-%m-%d").date()
-    except (ValueError, TypeError):
+        s = str(date_str).strip()
+        return date(int(s[0:4]), int(s[5:7]), int(s[8:10]))
+    except (ValueError, TypeError, IndexError):
         return None
 
 

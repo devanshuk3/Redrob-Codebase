@@ -215,7 +215,7 @@ def get_matched_skills(candidate: Candidate, jd_features: JDFeatures) -> List[st
     return matched
 
 
-def score_career_domain_keywords(candidate: Candidate) -> dict:
+def score_career_domain_keywords(candidate: Candidate, career_text: Optional[str] = None) -> dict:
     """
     Score career description text against domain-specific keyword sets.
     Returns {domain_name: score} for retrieval, ranking, evaluation, production.
@@ -223,15 +223,20 @@ def score_career_domain_keywords(candidate: Candidate) -> dict:
 
     Scoring logic: count keyword hits in career description + title text,
     normalize to [0, 1] with saturation at 4 hits per domain.
+
+    Args:
+        candidate: Candidate object.
+        career_text: Pre-computed lowercased career text (titles+descriptions).
     """
     # Build career text from all career history entries
-    parts = []
-    for career in candidate.career_history:
-        if career.description:
-            parts.append(career.description.lower())
-        if career.title:
-            parts.append(career.title.lower())
-    career_text = " ".join(parts)
+    if career_text is None:
+        parts = []
+        for career in candidate.career_history:
+            if career.description:
+                parts.append(career.description.lower())
+            if career.title:
+                parts.append(career.title.lower())
+        career_text = " ".join(parts)
 
     if not career_text.strip():
         return {"retrieval": 0.0, "ranking": 0.0, "evaluation": 0.0, "production": 0.0}

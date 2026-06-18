@@ -7,6 +7,8 @@ serving, monitoring, scale, distributed systems, etc.
 Production deployment experience ranks higher than research/hobby projects.
 """
 
+from typing import Optional
+
 from src.ingestion.candidate_parser import Candidate
 from src.utils.constants import PRODUCTION_KEYWORDS
 from src.utils.text_utils import count_keyword_matches, canonicalize_skill
@@ -24,7 +26,10 @@ _PROD_SKILL_KEYWORDS = {
 }
 
 
-def score_production(candidate: Candidate) -> float:
+def score_production(
+    candidate: Candidate,
+    combined_text: Optional[str] = None,
+) -> float:
     """
     Score production engineering experience.
 
@@ -32,31 +37,36 @@ def score_production(candidate: Candidate) -> float:
     for production/deployment/scale keywords. Strongly rewards
     evidence of real production deployments.
 
+    Args:
+        candidate: Candidate object.
+        combined_text: Pre-computed lowercased combined text (career+headline+summary+skills).
+
     Returns:
         Normalized score [0, 1].
     """
-    parts = []
+    if combined_text is None:
+        parts = []
 
-    for career in candidate.career_history:
-        if career.description:
-            parts.append(career.description.lower())
-        if career.title:
-            parts.append(career.title.lower())
+        for career in candidate.career_history:
+            if career.description:
+                parts.append(career.description.lower())
+            if career.title:
+                parts.append(career.title.lower())
 
-    if candidate.headline:
-        parts.append(candidate.headline.lower())
-    if candidate.summary:
-        parts.append(candidate.summary.lower())
+        if candidate.headline:
+            parts.append(candidate.headline.lower())
+        if candidate.summary:
+            parts.append(candidate.summary.lower())
 
-    skill_text = " ".join(s.name.lower() for s in candidate.skills if s.name)
-    parts.append(skill_text)
+        skill_text = " ".join(s.name.lower() for s in candidate.skills if s.name)
+        parts.append(skill_text)
 
-    combined = " ".join(parts)
+        combined_text = " ".join(parts)
 
-    if not combined.strip():
+    if not combined_text.strip():
         return 0.0
 
-    matches = count_keyword_matches(combined, PRODUCTION_KEYWORDS)
+    matches = count_keyword_matches(combined_text, PRODUCTION_KEYWORDS)
 
     # Graduated scoring — more granular for production signals
     if matches >= 12:

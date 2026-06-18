@@ -265,6 +265,64 @@ def _check_non_tech_role(candidate: Candidate) -> bool:
     return has_non_tech and not has_tech
 
 
+def _check_non_tech_role_raw(record: dict) -> bool:
+    """
+    Raw-dict version of _check_non_tech_role.
+    Replicates the exact same logic against raw dict fields,
+    producing identical pass/fail decisions.
+    """
+    profile = record.get("profile", {})
+    title = profile.get("current_title", "") or ""
+    title = str(title)
+
+    if not title:
+        career_history = record.get("career_history", [])
+        if isinstance(career_history, list):
+            for job in career_history:
+                if isinstance(job, dict):
+                    t = job.get("title", "") or ""
+                    t = str(t)
+                    if t:
+                        title = t
+                        break
+    if not title:
+        return False
+
+    title_lower = title.lower()
+    non_tech_words = {
+        "hr", "human resources", "recruiter", "talent acquisition", "designer",
+        "graphic", "marketing", "sales", "account", "finance", "product manager",
+        "project manager", "writer", "content", "operations", "social media",
+        "business development", "bde", "recruitment", "head of talent"
+    }
+    tech_words = {"engineer", "developer", "scientist", "programmer", "tech", "architect", "coder"}
+
+    has_non_tech = any(w in title_lower for w in non_tech_words)
+    has_tech = any(w in title_lower for w in tech_words)
+
+    return has_non_tech and not has_tech
+
+
+def fast_prefilter_raw(record: dict, min_yoe: float = 3.0) -> bool:
+    """
+    Raw-dict version of fast_prefilter.
+    Returns True if the record passes (should be kept).
+    Operates on raw dict to avoid full parse_candidate cost.
+    """
+    if _check_non_tech_role_raw(record):
+        return False
+    profile = record.get("profile", {})
+    try:
+        yoe = float(profile.get("years_of_experience", 0))
+    except (ValueError, TypeError):
+        yoe = 0.0
+    if yoe < 0:
+        yoe = 0.0
+    if yoe < min_yoe:
+        return False
+    return True
+
+
 def _has_relevant_tech_experience(candidate: Candidate) -> bool:
     """Check if the candidate has at least one relevant technical/engineering role in their history."""
     RELEVANT_KEYWORDS = {

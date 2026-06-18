@@ -7,12 +7,18 @@ in career descriptions, titles, and skills.
 Retrieval/search/vector-DB skills carry MORE weight than generic AI keywords.
 """
 
+from typing import Optional
+
 from src.ingestion.candidate_parser import Candidate
 from src.utils.constants import RETRIEVAL_KEYWORDS, RETRIEVAL_SKILL_KEYWORDS
 from src.utils.text_utils import count_keyword_matches, canonicalize_skill
 
 
-def score_retrieval(candidate: Candidate) -> float:
+def score_retrieval(
+    candidate: Candidate,
+    career_text: Optional[str] = None,
+    other_text: Optional[str] = None,
+) -> float:
     """
     Score retrieval/search system experience.
 
@@ -20,28 +26,35 @@ def score_retrieval(candidate: Candidate) -> float:
     for retrieval-domain keywords. Uses graduated scoring with
     stronger ceiling and skill-name bonuses.
 
+    Args:
+        candidate: Candidate object.
+        career_text: Pre-computed lowercased career text (titles+descriptions).
+        other_text: Pre-computed lowercased other text (headline+summary+skills).
+
     Returns:
         Normalized score [0, 1].
     """
     # 1. Career history text
-    career_parts = []
-    for career in candidate.career_history:
-        if career.description:
-            career_parts.append(career.description.lower())
-        if career.title:
-            career_parts.append(career.title.lower())
-    career_text = " ".join(career_parts)
+    if career_text is None:
+        career_parts = []
+        for career in candidate.career_history:
+            if career.description:
+                career_parts.append(career.description.lower())
+            if career.title:
+                career_parts.append(career.title.lower())
+        career_text = " ".join(career_parts)
 
     # 2. Other profile text (headline, summary, skills)
-    other_parts = []
-    if candidate.headline:
-        other_parts.append(candidate.headline.lower())
-    if candidate.summary:
-        other_parts.append(candidate.summary.lower())
-    
-    skill_text = " ".join(s.name.lower() for s in candidate.skills if s.name)
-    other_parts.append(skill_text)
-    other_text = " ".join(other_parts)
+    if other_text is None:
+        other_parts = []
+        if candidate.headline:
+            other_parts.append(candidate.headline.lower())
+        if candidate.summary:
+            other_parts.append(candidate.summary.lower())
+        
+        skill_text = " ".join(s.name.lower() for s in candidate.skills if s.name)
+        other_parts.append(skill_text)
+        other_text = " ".join(other_parts)
 
     # Count matches
     career_matches = count_keyword_matches(career_text, RETRIEVAL_KEYWORDS)

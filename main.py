@@ -32,12 +32,14 @@ import argparse
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, PROJECT_ROOT)
 
+import heapq
+from src.utils.io_utils import stream_jsonl
 from src.utils.config import Config
 from src.utils.logging_utils import get_logger
 from src.ingestion.data_loader import load_candidates
 from src.ingestion.schema_validator import validate_record
 from src.ingestion.candidate_parser import Candidate, parse_candidate
-from src.ingestion.honeypot_filter import compute_quality_score, _check_non_tech_role
+from src.ingestion.honeypot_filter import compute_quality_score, _check_non_tech_role, fast_prefilter_raw
 from src.features.jd_feature_mapper import parse_job_description, JDFeatures
 from src.features.feature_builder import build_structured_features
 from src.semantic.text_builder import build_candidate_text, build_jd_text
@@ -104,62 +106,69 @@ def main():
     logger.info(f"  Experience range: {jd_features.experience_range}")
     logger.info(f"  Domain keywords: {jd_features.domain_keywords[:10]}")
 
-    # 3. Load & Validate Candidates
-    logger.info("Phase 2: Loading and validating candidates...")
+    # 3. Load, Validate, Pre-filter, Parse, and Extract Structured Features using a Streaming Heap
+    logger.info("Phase 2+3+4: Streaming candidates, pre-filtering, and calculating structured features...")
     t0 = time.time()
-    raw_records = load_candidates(limit=args.limit)
 
-    valid_candidates: List[Candidate] = []
+    min_yoe = Config.EXPERIENCE_IDEAL_MIN - 2  # 5 - 2 = 3
+
+    # Heap will contain tuples of (structured_score, -idx, candidate_id, candidate, features)
+    # Using -idx as a tie-breaker ensures that if there are identical structured scores,
+    # the candidate appearing earlier in the file (smaller idx) will be preferred, matching stable sort descending.
+    heap = []
     invalid_count = 0
+    prefilter_removed = 0
+    processed_count = 0
 
-    for record in raw_records:
+    filepath = Config.CANDIDATES_FILE
+
+    for idx, record in enumerate(stream_jsonl(filepath)):
+        if args.limit is not None and idx >= args.limit:
+            break
+
         is_valid, reason = validate_record(record)
         if not is_valid:
             invalid_count += 1
             continue
+
+        # Cheap pre-filter on raw dict BEFORE parsing
+        if not fast_prefilter_raw(record, min_yoe=min_yoe):
+            prefilter_removed += 1
+            continue
+
         candidate = parse_candidate(record)
-        valid_candidates.append(candidate)
-
-    logger.info(
-        f"  Loaded {len(valid_candidates)} valid candidates "
-        f"({invalid_count} rejected) in {time.time() - t0:.1f}s"
-    )
-
-    # 4. Fast Pre-Filter (TASK E — cheap checks only)
-    logger.info("Phase 3: Fast pre-filter (non-tech role + YOE minimum)...")
-    t0 = time.time()
-    min_yoe = Config.EXPERIENCE_IDEAL_MIN - 2  # 5 - 2 = 3
-    filtered_candidates: List[Candidate] = [
-        c for c in valid_candidates if fast_prefilter(c, min_yoe=min_yoe)
-    ]
-    removed = len(valid_candidates) - len(filtered_candidates)
-    logger.info(
-        f"  Fast pre-filter: {len(filtered_candidates)} passed, "
-        f"{removed} removed in {time.time() - t0:.1f}s"
-    )
-
-    # 5. Structured Feature Extraction
-    logger.info("Phase 4: Structured feature extraction...")
-    t0 = time.time()
-    candidate_features: Dict[str, Dict[str, Any]] = {}
-
-    for candidate in filtered_candidates:
         features = build_structured_features(candidate, jd_features)
-        candidate_features[candidate.candidate_id] = features
+        structured_score = features["structured_score"]
 
-    logger.info(f"  Extracted features for {len(candidate_features)} candidates in {time.time() - t0:.1f}s")
+        # Keep only the top-K by structured score using a heap
+        if len(heap) < Config.STRUCTURED_TOP_K:
+            heapq.heappush(heap, (structured_score, -idx, candidate.candidate_id, candidate, features))
+        else:
+            # If the current score is higher than the root of our min-heap, push it and pop the root.
+            if structured_score > heap[0][0]:
+                heapq.heappushpop(heap, (structured_score, -idx, candidate.candidate_id, candidate, features))
 
-    # 6. Pre-Filter: Select Top K by Structured Score
-    logger.info(f"Phase 5: Pre-filtering to top {Config.STRUCTURED_TOP_K} by structured score...")
-    sorted_by_structured = sorted(
-        candidate_features.items(),
-        key=lambda x: x[1]["structured_score"],
-        reverse=True,
+        processed_count += 1
+
+    # Reconstruct top_k_candidates and candidate_features preserving the original file order
+    # Sort the heap by original file index (idx) to preserve order
+    heap.sort(key=lambda x: -x[1])
+
+    top_k_candidates: List[Candidate] = []
+    candidate_features: Dict[str, Dict[str, Any]] = {}
+    top_k_ids = set()
+
+    for structured_score, neg_idx, cid, candidate, features in heap:
+        top_k_candidates.append(candidate)
+        candidate_features[cid] = features
+        top_k_ids.add(cid)
+
+    logger.info(
+        f"  Processed: {processed_count} candidates, "
+        f"{invalid_count} invalid, {prefilter_removed} pre-filtered "
+        f"in {time.time() - t0:.1f}s"
     )
-    top_k_ids = set(cid for cid, _ in sorted_by_structured[:Config.STRUCTURED_TOP_K])
-    top_k_candidates = [c for c in filtered_candidates if c.candidate_id in top_k_ids]
-
-    logger.info(f"  Selected {len(top_k_candidates)} candidates for semantic reranking")
+    logger.info(f"  Selected top {len(top_k_candidates)} candidates by structured score for semantic reranking")
 
     # 7. Semantic Embedding & Similarity
     logger.info("Phase 6: Semantic embedding and similarity...")

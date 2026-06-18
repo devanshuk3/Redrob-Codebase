@@ -4,6 +4,7 @@ Text normalization and canonicalization utilities.
 
 import re
 import unicodedata
+from functools import lru_cache
 from typing import List
 
 
@@ -16,6 +17,7 @@ def normalize_text(text: str) -> str:
     return text
 
 
+@lru_cache(maxsize=8192)
 def canonicalize_skill(skill: str) -> str:
     """
     Normalize a skill name for matching.

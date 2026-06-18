@@ -2,7 +2,8 @@
 Embedding generator — wraps SentenceTransformer for local CPU inference.
 """
 
-from typing import List, Optional
+import os
+from typing import Dict, List, Optional
 
 import numpy as np
 
@@ -10,6 +11,29 @@ from src.utils.config import Config
 from src.utils.logging_utils import get_logger
 
 logger = get_logger(__name__)
+
+
+def _configure_cpu_threads():
+    """Configure optimal CPU threading for embedding inference."""
+    import torch
+
+    # Use physical cores (half of os.cpu_count() on hyperthreaded CPUs)
+    # os.cpu_count() returns logical cores; for CPU inference, using physical
+    # cores avoids cache thrashing from hyperthreading.
+    logical_cores = os.cpu_count() or 4
+    physical_cores = max(1, logical_cores // 2)
+
+    torch.set_num_threads(physical_cores)
+    torch.set_num_interop_threads(max(1, physical_cores // 2))
+
+    # Also set via environment for BLAS/MKL backends
+    os.environ.setdefault("OMP_NUM_THREADS", str(physical_cores))
+    os.environ.setdefault("MKL_NUM_THREADS", str(physical_cores))
+
+    logger.info(
+        f"CPU threading: {physical_cores} threads "
+        f"(from {logical_cores} logical cores)"
+    )
 
 
 class EmbeddingGenerator:
@@ -26,7 +50,9 @@ class EmbeddingGenerator:
     def load_model(self):
         """Load the SentenceTransformer model (download if needed) strictly on CPU."""
         from sentence_transformers import SentenceTransformer
-        import os
+
+        # Configure CPU threading before model load
+        _configure_cpu_threads()
 
         if os.path.exists(self.model_dir) and os.listdir(self.model_dir):
             logger.info(f"Loading model from local cache: {self.model_dir} (forcing CPU)")
@@ -44,7 +70,7 @@ class EmbeddingGenerator:
         self,
         texts: List[str],
         batch_size: Optional[int] = None,
-        show_progress: bool = True,
+        show_progress: bool = False,
     ) -> np.ndarray:
         """
         Encode a list of texts into embedding vectors.
@@ -52,7 +78,7 @@ class EmbeddingGenerator:
         Args:
             texts: List of text strings to encode.
             batch_size: Batch size for encoding. Defaults to Config.EMBEDDING_BATCH_SIZE.
-            show_progress: Whether to show a progress bar.
+            show_progress: Whether to show a progress bar (default: off for speed).
 
         Returns:
             numpy array of shape (len(texts), embedding_dim).
@@ -106,4 +132,3 @@ class EmbeddingGenerator:
             logger.info(f"Encoded concept '{name}': shape {embedding[0].shape}")
 
         return result
-

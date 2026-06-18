@@ -14,7 +14,7 @@ Additional modifiers:
 """
 
 import math
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from src.ingestion.candidate_parser import Candidate
 from src.features.jd_feature_mapper import JDFeatures
@@ -33,6 +33,18 @@ from src.utils.config import Config
 from src.utils.constants import LLM_HYPE_KEYWORDS
 from src.utils.text_utils import count_keyword_matches
 
+# Pre-compute total structured weight once at module load (sum of 8 Config constants)
+_TOTAL_WEIGHT = (
+    Config.STRUCT_WEIGHT_SKILL
+    + Config.STRUCT_WEIGHT_RETRIEVAL
+    + Config.STRUCT_WEIGHT_RANKING
+    + Config.STRUCT_WEIGHT_EVALUATION
+    + Config.STRUCT_WEIGHT_PRODUCTION
+    + Config.STRUCT_WEIGHT_EXPERIENCE
+    + Config.STRUCT_WEIGHT_EDUCATION
+    + Config.STRUCT_WEIGHT_CERTIFICATION
+)
+
 
 def _compute_llm_hype_penalty(
     candidate: Candidate,
@@ -40,6 +52,7 @@ def _compute_llm_hype_penalty(
     ranking: float,
     evaluation: float,
     production: float,
+    combined_text: Optional[str] = None,
 ) -> float:
     """
     Compute LLM-hype penalty (TASK 4).
@@ -54,25 +67,27 @@ def _compute_llm_hype_penalty(
         Penalty value [0.0, Config.LLM_HYPE_PENALTY_MAX].
     """
     # Build combined text
-    parts = []
-    for career in candidate.career_history:
-        if career.description:
-            parts.append(career.description.lower())
-        if career.title:
-            parts.append(career.title.lower())
-    if candidate.headline:
-        parts.append(candidate.headline.lower())
-    if candidate.summary:
-        parts.append(candidate.summary.lower())
+    if combined_text is None:
+        parts = []
+        for career in candidate.career_history:
+            if career.description:
+                parts.append(career.description.lower())
+            if career.title:
+                parts.append(career.title.lower())
+        if candidate.headline:
+            parts.append(candidate.headline.lower())
+        if candidate.summary:
+            parts.append(candidate.summary.lower())
 
-    skill_text = " ".join(s.name.lower() for s in candidate.skills if s.name)
-    parts.append(skill_text)
+        skill_text = " ".join(s.name.lower() for s in candidate.skills if s.name)
+        parts.append(skill_text)
 
-    combined = " ".join(parts)
-    if not combined.strip():
+        combined_text = " ".join(parts)
+
+    if not combined_text.strip():
         return 0.0
 
-    hype_hits = count_keyword_matches(combined, LLM_HYPE_KEYWORDS)
+    hype_hits = count_keyword_matches(combined_text, LLM_HYPE_KEYWORDS)
     if hype_hits <= 2:
         return 0.0  # minimal hype mention is fine
 
@@ -114,11 +129,34 @@ def build_structured_features(
         - assessment_score
         - assessment_modifier
     """
-    # Compute individual sub-scores
-    retrieval = score_retrieval(candidate)
-    ranking = score_ranking(candidate)
-    evaluation = score_evaluation(candidate)
-    production = score_production(candidate)
+    # --- Pre-compute shared text blobs once per candidate ---
+    # career_text: lowercased career titles + descriptions
+    career_parts = []
+    for career_entry in candidate.career_history:
+        if career_entry.description:
+            career_parts.append(career_entry.description.lower())
+        if career_entry.title:
+            career_parts.append(career_entry.title.lower())
+    career_text = " ".join(career_parts)
+
+    # other_text: headline + summary + skill names (lowercased)
+    other_parts = []
+    if candidate.headline:
+        other_parts.append(candidate.headline.lower())
+    if candidate.summary:
+        other_parts.append(candidate.summary.lower())
+    skill_text = " ".join(s.name.lower() for s in candidate.skills if s.name)
+    other_parts.append(skill_text)
+    other_text = " ".join(other_parts)
+
+    # combined_text: career + headline + summary + skills (used by production scorer & hype penalty)
+    combined_text = (career_text + " " + other_text) if career_text else other_text
+
+    # Compute individual sub-scores (passing pre-computed text)
+    retrieval = score_retrieval(candidate, career_text=career_text, other_text=other_text)
+    ranking = score_ranking(candidate, career_text=career_text, other_text=other_text)
+    evaluation = score_evaluation(candidate, career_text=career_text, other_text=other_text)
+    production = score_production(candidate, combined_text=combined_text)
     experience = score_experience(candidate, jd_features)
     education = score_education(candidate)
     certification = score_certifications(candidate)
@@ -126,7 +164,7 @@ def build_structured_features(
     behavioral = score_behavioral(candidate)
 
     # Career domain keyword scoring (TASK B)
-    career_keyword_scores = score_career_domain_keywords(candidate)
+    career_keyword_scores = score_career_domain_keywords(candidate, career_text=career_text)
 
     # Blend domain scores: 70% structured scorer + 30% career keyword scorer
     retrieval = 0.70 * retrieval + 0.30 * career_keyword_scores.get("retrieval", 0.0)
@@ -193,8 +231,7 @@ def build_structured_features(
 
     # Technical and Behavioral Rewards (TASK 6 Boosts)
     # A. Scale Boost: if career history shows scale / production / latency metrics
-    career_desc = " ".join([c.description.lower() for c in candidate.career_history if c.description])
-    has_scale_terms = any(w in career_desc for w in ["scale", "million", "billion", "qps", "latency", "throughput", "production", "shipped", "deployed"])
+    has_scale_terms = any(w in career_text for w in ["scale", "million", "billion", "qps", "latency", "throughput", "production", "shipped", "deployed"])
     scale_boost = 1.03 if has_scale_terms else 1.0
 
     # B. Behavioral Boost: strong response rate and active GitHub
@@ -204,7 +241,7 @@ def build_structured_features(
         behavioral_boost = 1.03
 
     # Compute LLM hype penalty
-    hype_penalty = _compute_llm_hype_penalty(candidate, retrieval, ranking, evaluation, production)
+    hype_penalty = _compute_llm_hype_penalty(candidate, retrieval, ranking, evaluation, production, combined_text=combined_text)
 
     # Compute structured score (weighted combination)
     structured_score = (
@@ -218,19 +255,9 @@ def build_structured_features(
         + Config.STRUCT_WEIGHT_CERTIFICATION * certification
     )
 
-    # Normalize — the weights should sum to 1.0, but let's ensure it
-    total_weight = (
-        Config.STRUCT_WEIGHT_SKILL
-        + Config.STRUCT_WEIGHT_RETRIEVAL
-        + Config.STRUCT_WEIGHT_RANKING
-        + Config.STRUCT_WEIGHT_EVALUATION
-        + Config.STRUCT_WEIGHT_PRODUCTION
-        + Config.STRUCT_WEIGHT_EXPERIENCE
-        + Config.STRUCT_WEIGHT_EDUCATION
-        + Config.STRUCT_WEIGHT_CERTIFICATION
-    )
-    if total_weight > 0:
-        structured_score = structured_score / total_weight
+    # Normalize — the weights sum to 1.0, using pre-computed module-level constant
+    if _TOTAL_WEIGHT > 0:
+        structured_score = structured_score / _TOTAL_WEIGHT
 
     # Apply LLM hype penalty — subtracts from structured score
     structured_score = max(0.0, structured_score - hype_penalty)

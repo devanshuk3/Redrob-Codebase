@@ -6,6 +6,8 @@ experiment framework experience. These signals carry increased
 weight as the JD explicitly requires ranking evaluation expertise.
 """
 
+from typing import Optional
+
 from src.ingestion.candidate_parser import Candidate
 from src.utils.constants import EVALUATION_KEYWORDS
 from src.utils.text_utils import count_keyword_matches, canonicalize_skill
@@ -18,35 +20,46 @@ _EVAL_SKILL_KEYWORDS = {
 }
 
 
-def score_evaluation(candidate: Candidate) -> float:
+def score_evaluation(
+    candidate: Candidate,
+    career_text: Optional[str] = None,
+    other_text: Optional[str] = None,
+) -> float:
     """
     Score evaluation framework experience.
 
     Scans career descriptions, titles, skills, headline, and summary
     for evaluation-domain keywords (NDCG, MAP, MRR, A/B testing, etc.).
 
+    Args:
+        candidate: Candidate object.
+        career_text: Pre-computed lowercased career text (titles+descriptions).
+        other_text: Pre-computed lowercased other text (headline+summary+skills).
+
     Returns:
         Normalized score [0, 1].
     """
     # 1. Career history text
-    career_parts = []
-    for career in candidate.career_history:
-        if career.description:
-            career_parts.append(career.description.lower())
-        if career.title:
-            career_parts.append(career.title.lower())
-    career_text = " ".join(career_parts)
+    if career_text is None:
+        career_parts = []
+        for career in candidate.career_history:
+            if career.description:
+                career_parts.append(career.description.lower())
+            if career.title:
+                career_parts.append(career.title.lower())
+        career_text = " ".join(career_parts)
 
     # 2. Other profile text (headline, summary, skills)
-    other_parts = []
-    if candidate.headline:
-        other_parts.append(candidate.headline.lower())
-    if candidate.summary:
-        other_parts.append(candidate.summary.lower())
-    
-    skill_text = " ".join(s.name.lower() for s in candidate.skills if s.name)
-    other_parts.append(skill_text)
-    other_text = " ".join(other_parts)
+    if other_text is None:
+        other_parts = []
+        if candidate.headline:
+            other_parts.append(candidate.headline.lower())
+        if candidate.summary:
+            other_parts.append(candidate.summary.lower())
+        
+        skill_text = " ".join(s.name.lower() for s in candidate.skills if s.name)
+        other_parts.append(skill_text)
+        other_text = " ".join(other_parts)
 
     # Count matches
     career_matches = count_keyword_matches(career_text, EVALUATION_KEYWORDS)
