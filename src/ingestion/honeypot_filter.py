@@ -8,7 +8,7 @@ from typing import Optional, Dict, Any, List
 
 from src.ingestion.candidate_parser import Candidate
 from src.utils.config import Config
-from src.utils.constants import UNRELATED_SKILL_DOMAINS
+from src.utils.constants import UNRELATED_SKILL_DOMAINS, CONSULTING_COMPANIES
 from src.utils.date_utils import years_since_graduation
 from src.utils.logging_utils import get_logger
 
@@ -217,17 +217,24 @@ def analyze_candidate_issues(candidate: Candidate) -> Dict[str, Any]:
             and max_salary > Config.MAX_SALARY_FOR_LOW_EXP):
         issues["SALARY_EXP_MISMATCH"] = {"penalty": 0.75}
 
-    # 9. Consulting Only
+    # 9. Consulting Only — uses centralized CONSULTING_COMPANIES from constants
     if candidate.career_history:
         companies = [c.company.lower() for c in candidate.career_history if c.company]
         if companies:
-            CONSULTING_COMPANIES = {"tcs", "tata consultancy", "infosys", "wipro", "accenture", "cognizant", "capgemini"}
             only_consulting = all(
                 any(cc in comp for cc in CONSULTING_COMPANIES)
                 for comp in companies
             )
             if only_consulting:
                 issues["CONSULTING_ONLY"] = {"penalty": 1.0}
+
+    # 10. Honeypot candidate (hard logical impossibility) — Fix #1
+    if is_honeypot_candidate(candidate):
+        issues["HONEYPOT"] = {"hard_exclude": True}
+
+    # 11. CV/Vision-primary without NLP/IR exposure — Fix #3
+    if is_cv_only_candidate(candidate):
+        issues["CV_ONLY"] = {"penalty": 1.0}
 
     return issues
 
@@ -327,7 +334,7 @@ def _has_relevant_tech_experience(candidate: Candidate) -> bool:
     """Check if the candidate has at least one relevant technical/engineering role in their history."""
     RELEVANT_KEYWORDS = {
         "software", "developer", "programmer", "architect", "scientist", "data", 
-        "machine learning", "ml", "ai", "deep learning", "nlp", "vision", "search", 
+        "machine learning", "ml", "ai", "deep learning", "nlp", "search", 
         "retrieval", "ranking", "recommender", "recommendation", "systems", "backend", 
         "fullstack", "full stack", "frontend", "devops", "infrastructure", "cloud"
     }
@@ -497,7 +504,90 @@ def is_honeypot_candidate(candidate: Candidate) -> bool:
             expert_zero_count += 1
     if expert_zero_count >= 5:
         return True
-        
+
+    return False
+
+
+def is_cv_only_candidate(candidate: Candidate) -> bool:
+    """
+    Check if a candidate's primary expertise is CV/vision/speech/robotics
+    WITHOUT significant NLP/IR/retrieval/search exposure.
+
+    Returns True if the candidate should be flagged as domain-mismatched
+    per the JD's explicit exclusion of CV/speech/robotics-primary profiles.
+    """
+    # CV/vision/speech/robotics keywords
+    CV_PRIMARY_KEYWORDS = {
+        "computer vision", "vision", "image", "object detection", "image recognition",
+        "image classification", "image segmentation", "face recognition", "face detection",
+        "ocr", "optical character", "video", "yolo", "cnn", "convolutional",
+        "opencv", "lidar", "point cloud", "3d", "autonomous", "self-driving",
+        "speech", "speech recognition", "asr", "tts", "text-to-speech",
+        "robotics", "robot", "ros", "slam",
+    }
+
+    # NLP/IR/retrieval/search keywords that indicate JD-relevant exposure
+    NLP_IR_KEYWORDS = {
+        "nlp", "natural language", "text", "language model", "lm", "llm",
+        "retrieval", "search", "information retrieval", "ir", "ranking",
+        "recommendation", "embeddings", "embedding", "vector search",
+        "semantic search", "rag", "transformers", "bert", "gpt",
+        "sentence transformer", "tokeniz", "named entity", "ner",
+        "text classification", "sentiment", "question answering",
+        "document", "query", "faiss", "milvus", "pinecone", "elasticsearch",
+        "opensearch", "weaviate", "qdrant", "solr", "lucene",
+    }
+
+    # Build combined text from title, career, skills, summary
+    title = (candidate.current_title or "").lower()
+    career_titles = [c.title.lower() for c in candidate.career_history if c.title]
+    career_descs = [c.description.lower() for c in candidate.career_history if c.description]
+    skill_names = [s.name.lower() for s in candidate.skills]
+    summary = (candidate.summary or "").lower()
+    headline = (candidate.headline or "").lower()
+
+    all_text = " ".join([title] + career_titles + career_descs + skill_names + [summary, headline])
+    all_titles = " ".join([title] + career_titles)
+
+    # Count CV/vision signals vs NLP/IR signals
+    cv_hits = sum(1 for kw in CV_PRIMARY_KEYWORDS if kw in all_text)
+    nlp_ir_hits = sum(1 for kw in NLP_IR_KEYWORDS if kw in all_text)
+
+    # Check if current/most recent title is CV/vision-focused
+    title_is_cv = any(kw in all_titles for kw in {
+        "computer vision", "vision engineer", "vision scientist",
+        "image", "perception", "robotics", "speech",
+    })
+
+    # Only flag if: title is CV-focused AND they have significant CV signals
+    # AND they lack NLP/IR signals
+    if title_is_cv and cv_hits >= 3 and nlp_ir_hits < 2:
+        return True
+
+    # Also flag if CV signals dominate overwhelmingly without any NLP/IR
+    if cv_hits >= 5 and nlp_ir_hits == 0:
+        return True
+
+    return False
+
+
+def is_hard_excluded(candidate: Candidate) -> bool:
+    """
+    Unified hard-exclusion check. Returns True if the candidate must be
+    excluded from the final top-100 ranking due to disqualifying signals.
+
+    Disqualifying signals (Fix #1, #2, #3):
+    - HONEYPOT: logically impossible profile (degree-timeline, duplicate degrees, etc.)
+    - CONSULTING_ONLY: entire career at IT-services/consulting firms
+    - CV_ONLY: primary expertise is CV/vision/speech/robotics without NLP/IR exposure
+    """
+    issues = get_candidate_issues(candidate)
+    if "HONEYPOT" in issues:
+        return True
+    if "CONSULTING_ONLY" in issues:
+        return True
+    if "CV_ONLY" in issues:
+        return True
     return False
 
 
@@ -524,6 +614,8 @@ def compute_quality_score(candidate: Candidate) -> float:
         penalties += 0.75
     if "CONSULTING_ONLY" in issues:
         penalties += 1.0
+    if "CV_ONLY" in issues:
+        penalties += 1.0
 
     safety_factor = max(0.0, 1.0 - (penalties / max_penalty))
     consistency = _compute_consistency_score(candidate)
@@ -542,3 +634,4 @@ def _earliest_graduation_year(candidate: Candidate) -> Optional[int]:
             except (ValueError, TypeError):
                 continue
     return min(years) if years else None
+

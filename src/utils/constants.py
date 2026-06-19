@@ -194,6 +194,22 @@ UNRELATED_SKILL_DOMAINS = {
            "employee relations", "hr management"],
 }
 
+# Consulting/IT-services companies — single source of truth (Fix #2)
+# JD explicitly says: "People who have only worked at consulting firms ... in their entire career"
+CONSULTING_COMPANIES = {
+    "tcs", "tata consultancy", "tata consultancy services",
+    "infosys", "wipro", "accenture", "cognizant", "capgemini",
+    "hcl", "hcl technologies", "hcltech",
+    "tech mahindra",
+    "mindtree", "ltimindtree", "lti", "l&t infotech", "larsen & toubro infotech",
+    "mphasis",
+    "hexaware", "hexaware technologies",
+    "cyient",
+    "zensar", "zensar technologies",
+    "niit technologies", "coforge",
+    "persistent systems", "persistent",
+}
+
 # Concept Embedding Texts (TASK A — 3-concept semantic scoring)
 
 RANKING_CONCEPT_TEXT = """

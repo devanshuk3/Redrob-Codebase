@@ -279,6 +279,10 @@ def build_debug_csv(
             "evaluation_concept": round(entry.get("evaluation_concept", 0.0), 6),
             "production_concept": round(entry.get("production_concept", 0.0), 6),
             "consulting_ratio": round(entry.get("consulting_ratio", 0.0), 4),
+            # Fix #1/#2/#3: Unified exclusion flags
+            "is_honeypot": entry.get("is_honeypot", False),
+            "is_consulting_only": entry.get("is_consulting_only", False),
+            "is_cv_only": entry.get("is_cv_only", False),
 
             # Feature Importance
             "top_positive_features": top_pos,

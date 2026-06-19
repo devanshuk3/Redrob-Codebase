@@ -39,7 +39,7 @@ from src.utils.logging_utils import get_logger
 from src.ingestion.data_loader import load_candidates
 from src.ingestion.schema_validator import validate_record
 from src.ingestion.candidate_parser import Candidate, parse_candidate
-from src.ingestion.honeypot_filter import compute_quality_score, _check_non_tech_role, fast_prefilter_raw
+from src.ingestion.honeypot_filter import compute_quality_score, _check_non_tech_role, fast_prefilter_raw, is_hard_excluded
 from src.features.jd_feature_mapper import parse_job_description, JDFeatures
 from src.features.feature_builder import build_structured_features
 from src.semantic.text_builder import build_candidate_text, build_jd_text
@@ -267,10 +267,16 @@ def main():
 
     # Run detailed quality scoring on top 300
     quality_survivors = []
+    hard_excluded_count = 0
     for entry in top_300:
         cid = entry["candidate_id"]
         candidate = candidate_map_all.get(cid)
         if candidate:
+            # Fix #1/#2/#3: Hard-exclude candidates with disqualifying signals
+            if is_hard_excluded(candidate):
+                hard_excluded_count += 1
+                continue
+
             q_score = compute_quality_score(candidate)
             candidate.quality_score = q_score
             entry["quality_score"] = q_score
@@ -312,7 +318,8 @@ def main():
 
     removed_honeypot = len(top_300) - len([e for e in quality_survivors if e in top_300])
     logger.info(
-        f"  Detailed honeypot: {len(quality_survivors)} survived from top 300, "
+        f"  Detailed honeypot: {len(quality_survivors)} survived from top 300 "
+        f"({hard_excluded_count} hard-excluded, {removed_honeypot - hard_excluded_count} quality-filtered), "
         f"in {time.time() - t0:.1f}s"
     )
 

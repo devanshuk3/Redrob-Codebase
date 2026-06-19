@@ -84,22 +84,96 @@ $$\text{Final Score} = 0.35 \times \text{Semantic Score} + 0.30 \times \text{Str
 
 ---
 
-## Setup & Running
+## Setup & Execution (Reproducibility Guide)
 
-### 1. Data Placement
-Before running the pipeline, you must add the input data and job description files to the `data/` folder:
-* **Candidate Data**: Place the candidates JSONL file at `data/candidates.jsonl`.
-* **Job Description**: Place the target job description Markdown file at `data/job_description.md`.
+This guide provides step-by-step instructions to replicate the pipeline and run tests in a clean virtual environment. 
 
-### 2. Run the Project
-To install all required dependencies and run the entire candidate discovery and ranking pipeline end-to-end, execute the following command in the project root:
+### 1. Prerequisites & System Requirements
+* **Python**: `Python 3.10` or higher (successfully developed and verified on `Python 3.12.3`).
+* **Hardware**: Standard x86 or ARM CPU with at least 8 GB RAM (16 GB recommended for 100k candidate scaling).
+* **Operating System**: Linux, macOS, or Windows.
+
+### 2. Dependency List & Pinned Versions
+The following external libraries are required and pinned inside `requirements.txt` for 100% environment reproducibility:
+* `numpy==2.4.6` — Multi-signal vector metrics and array operations.
+* `pandas==3.0.3` — Data extraction, manipulation, and CSV generation.
+* `scikit-learn==1.9.0` — Similarity and distance metric helpers.
+* `sentence-transformers==5.5.1` — Local encoding of text tokens to dense vectors.
+* `RapidFuzz==3.14.5` — High-performance token/skill fuzzy matching.
+* `faiss-cpu==1.14.3` — Dense vector similarity index search on CPU.
+* `orjson==3.11.9` — Ultra-fast, memory-efficient candidate JSONL serialization.
+* `pytest==9.0.3` — Test suite execution.
+
+### 3. Setup Virtual Environment
+Navigate to the root of the project (`Redrob-Codebase`) and run the commands matching your operating system:
+
+#### On Linux / macOS:
 ```bash
-pip install -r requirements.txt && python main.py
-```
-This command installs the packages (including local CPU inference utilities), downloads/caches the sentence embedding model (`all-MiniLM-L6-v2`), and produces the formatted `outputs/submission.csv` containing the Top 100 candidates.
+# 1. Create a virtual environment named 'venv'
+python3 -m venv venv
 
-### 3. Running Tests
-To verify the unit and integration test suite:
+# 2. Activate the virtual environment
+source venv/bin/activate
+
+# 3. Upgrade pip to the latest version
+pip install --upgrade pip
+
+# 4. Install dependencies
+pip install -r requirements.txt
+```
+
+#### On Windows (PowerShell or CMD):
+```powershell
+# 1. Create a virtual environment named 'venv'
+python -m venv venv
+
+# 2. Activate the virtual environment
+# In PowerShell:
+.\venv\Scripts\Activate.ps1
+# In Command Prompt (CMD):
+.\venv\Scripts\activate.bat
+
+# 3. Upgrade pip
+pip install --upgrade pip
+
+# 4. Install dependencies
+pip install -r requirements.txt
+```
+
+### 4. Data Placement
+Ensure that your input data files are located in the `data/` directory:
+* **Candidate Pool**: `data/candidates.jsonl`
+* **Job Description**: `data/job_description.md`
+
+### 5. Running the Pipeline
+With the virtual environment active, run the main entry point:
+```bash
+python main.py
+```
+This executes all phases of the pipeline:
+1. Loads and parses the input datasets.
+2. Runs the fast pre-filters and quality gating.
+3. Extracted features on top candidates.
+4. Downloads the SentenceTransformer model (`all-MiniLM-L6-v2`) locally to `models/` (first run only, fully cached/offline thereafter).
+5. Calculates semantic & domain-concept scores.
+6. Computes unified score fusion, sorts the results, and generates custom reasoning.
+7. Saves the output to `outputs/submission.csv` (Top 100 candidates) and logs status information.
+
+#### Additional CLI Options:
+* Run with a subset of candidates to quickly test system functionality (e.g. 5,000 records):
+  ```bash
+  python main.py --limit 5000
+  ```
+* Specify a custom job description or output file:
+  ```bash
+  python main.py --jd data/job_description.md --output outputs/submission.csv
+  ```
+
+### 6. Running Tests
+Verify the complete functionality, safety gates, and math logic by running the automated test suite:
 ```bash
 pytest
 ```
+This will automatically discover and run all unit and integration tests inside the `tests/` directory. All tests should report `PASSED`.
+
+

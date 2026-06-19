@@ -294,5 +294,9 @@ def build_structured_features(
         "recruiter_response_rate": candidate.redrob_signals.recruiter_response_rate,
         "last_active_date": candidate.redrob_signals.last_active_date,
         "notice_period_days": candidate.redrob_signals.notice_period_days,
+        # Fix #1/#2/#3: Unified exclusion signals for debug CSV
+        "is_honeypot": "HONEYPOT" in issues,
+        "is_consulting_only": "CONSULTING_ONLY" in issues,
+        "is_cv_only": "CV_ONLY" in issues,
     }
 

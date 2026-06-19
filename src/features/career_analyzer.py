@@ -5,6 +5,7 @@ Produces a general career relevance score.
 
 from src.ingestion.candidate_parser import Candidate
 from src.features.jd_feature_mapper import JDFeatures
+from src.utils.constants import CONSULTING_COMPANIES
 from src.utils.text_utils import count_keyword_matches
 
 
@@ -41,10 +42,7 @@ def score_career(candidate: Candidate, jd_features: JDFeatures) -> tuple:
     )
     combined = all_descriptions + " " + all_titles
 
-    # Compute consulting ratio
-    CONSULTING_COMPANIES = {"tcs", "tata consultancy", "infosys", "wipro",
-                            "accenture", "cognizant", "capgemini", "hcl",
-                            "tech mahindra", "mindtree", "mphasis", "ltimindtree"}
+    # Compute consulting ratio — uses centralized CONSULTING_COMPANIES from constants
     companies = [c.company.lower() for c in candidate.career_history if c.company]
     if companies:
         consulting_count = sum(
