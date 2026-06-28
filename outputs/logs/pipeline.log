@@ -2526,3 +2526,23 @@
 2026-06-20 22:05:59 | __main__                       | INFO    |   Experience range: [5.0, 9.0]
 2026-06-20 22:05:59 | __main__                       | INFO    |   Domain keywords: ['deployment', 'distributed', 'embedding', 'evaluation', 'inference', 'matching', 'metrics', 'production', 'ranking', 'recommendation']
 2026-06-20 22:05:59 | __main__                       | INFO    | Phase 2+3+4: Streaming candidates, pre-filtering, and calculating structured features...
+2026-06-28 18:43:33 | src.features.jd_feature_mapper | INFO    | JD parsed: 3 must-have skills, 3 preferred, experience range: [5.0, 9.0], 3 domain keywords
+2026-06-28 18:43:33 | src.features.jd_feature_mapper | INFO    | JD parsed: 0 must-have skills, 0 preferred, experience range: [5.0, 9.0], 0 domain keywords
+2026-06-28 18:43:33 | src.ingestion.data_loader      | INFO    | Loading candidates from /home/dev/Documents/RedRob project/Redrob-Codebase/data/candidates.jsonl...
+2026-06-28 18:43:33 | src.ingestion.data_loader      | INFO    | Loaded 10 candidate records
+2026-06-28 18:43:33 | src.ingestion.data_loader      | INFO    | Loading candidates from /tmp/tmpd8t8na4h.jsonl...
+2026-06-28 18:43:33 | src.ingestion.data_loader      | INFO    | Loaded 5 candidate records
+2026-06-28 18:43:33 | src.ingestion.data_loader      | INFO    | Loading candidates from /tmp/tmpfmllnpts.jsonl...
+2026-06-28 18:43:33 | src.utils.io_utils             | WARNING | Malformed JSON at line 2: invalid literal: line 1 column 1 (char 0)
+2026-06-28 18:43:33 | src.ingestion.data_loader      | INFO    | Loaded 2 candidate records
+2026-06-28 18:43:33 | src.ranking.score_combiner     | INFO    | Combined scores for 10 candidates
+2026-06-28 18:43:33 | src.ranking.score_combiner     | INFO    | Combined scores for 10 candidates
+2026-06-28 18:43:33 | src.ranking.score_combiner     | INFO    | Combined scores for 200 candidates
+2026-06-28 18:43:33 | src.ranking.ranker             | INFO    | Ranked top 100 candidates (score range: 0.9050 – 0.5337)
+2026-06-28 18:43:33 | src.ranking.score_combiner     | INFO    | Combined scores for 200 candidates
+2026-06-28 18:43:33 | src.ranking.ranker             | INFO    | Ranked top 100 candidates (score range: 0.9050 – 0.5337)
+2026-06-28 18:43:33 | src.ranking.score_combiner     | INFO    | Combined scores for 200 candidates
+2026-06-28 18:43:33 | src.ranking.ranker             | INFO    | Ranked top 100 candidates (score range: 0.9050 – 0.5337)
+2026-06-28 18:43:33 | src.ranking.reasoning_generator | INFO    | Generated reasoning for 1 candidates
+2026-06-28 18:43:33 | src.semantic.semantic_ranker   | INFO    | Computed semantic scores for 2 candidates (mean=0.5000, max=1.0000)
+2026-06-28 18:43:33 | src.semantic.semantic_ranker   | INFO    | Computed semantic scores for 10 candidates (mean=0.0129, max=0.0528)
