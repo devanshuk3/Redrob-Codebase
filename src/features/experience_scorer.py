@@ -11,8 +11,7 @@ from src.utils.config import Config
 
 def score_experience(candidate: Candidate, jd_features: JDFeatures) -> float:
     """
-    Score candidate's experience against JD expectations.
-
+    Score candidate's experience against JD expectations.   
     Components:
     1. Years-in-range score (40%): how well total experience matches ideal range
     2. Role relevance score (40%): current title similarity to JD domain keywords

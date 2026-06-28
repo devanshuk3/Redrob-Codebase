@@ -48,6 +48,7 @@ from src.semantic.embedding_store import EmbeddingStore
 from src.semantic.semantic_ranker import compute_semantic_scores, compute_concept_scores
 from src.ranking.score_combiner import combine_scores
 from src.ranking.ranker import rank_candidates
+from src.ranking.mmr_reranker import mmr_rerank
 from src.ranking.reasoning_generator import generate_reasoning
 from src.ranking.submission_builder import build_submission, save_full_scores, build_debug_csv
 from src.utils.constants import (
@@ -321,6 +322,11 @@ def main():
         f"  Detailed honeypot: {len(quality_survivors)} survived from top 300 "
         f"({hard_excluded_count} hard-excluded, {removed_honeypot - hard_excluded_count} quality-filtered), "
         f"in {time.time() - t0:.1f}s"
+    )
+
+    # 9.5. MMR Diversity Reranking (optional)
+    quality_survivors = mmr_rerank(
+        quality_survivors, candidate_embeddings, candidate_ids_list,
     )
 
     # 10. Rank & Select Top 100
