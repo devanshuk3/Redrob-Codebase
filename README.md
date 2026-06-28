@@ -19,7 +19,6 @@ The system was developed and orchestrated following a structured 7-phase impleme
 * **Phase 3: RAG-Based Semantic Scoring**: Local vector embeddings generated using a lightweight sentence-transformer model (`all-MiniLM-L6-v2`) to capture deep semantic relevance.
 * **Phase 4: Score Fusion & Final Ranking**: Executing a weighted formula to calculate final candidate suitability, sorting, selecting the top 100, and generating deterministic reasoning strings.
 * **Phase 5: Integration, Testing & Reproducibility**: Packaging the complete flow into `main.py`, fixing random seeds for 100% determinism, and profiling performance (CPU/RAM/Time).
-* **Phase 6: Deployment & Verification**: Deploying a validation sandbox/UI (Streamlit) and finalizing documentation for the judging committee.
 
 ---
 

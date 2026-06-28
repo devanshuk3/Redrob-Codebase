@@ -2517,3 +2517,12 @@
 2026-06-19 11:49:00 | src.ranking.reasoning_generator | INFO    | Generated reasoning for 1 candidates
 2026-06-19 11:49:00 | src.semantic.semantic_ranker   | INFO    | Computed semantic scores for 2 candidates (mean=0.5000, max=1.0000)
 2026-06-19 11:49:00 | src.semantic.semantic_ranker   | INFO    | Computed semantic scores for 10 candidates (mean=0.0129, max=0.0528)
+2026-06-20 22:05:59 | __main__                       | INFO    | ======================================================================
+2026-06-20 22:05:59 | __main__                       | INFO    | RedRob Candidate Ranking Pipeline — Starting
+2026-06-20 22:05:59 | __main__                       | INFO    | ======================================================================
+2026-06-20 22:05:59 | __main__                       | INFO    | Phase 1: Parsing job description...
+2026-06-20 22:05:59 | src.features.jd_feature_mapper | INFO    | JD parsed: 33 must-have skills, 0 preferred, experience range: [5.0, 9.0], 12 domain keywords
+2026-06-20 22:05:59 | __main__                       | INFO    |   Must-have skills: ['a/b test', 'a/b testing', 'distributed systems', 'elasticsearch', 'embedding', 'embeddings', 'faiss', 'fine-tune', 'fine-tuning', 'git']
+2026-06-20 22:05:59 | __main__                       | INFO    |   Experience range: [5.0, 9.0]
+2026-06-20 22:05:59 | __main__                       | INFO    |   Domain keywords: ['deployment', 'distributed', 'embedding', 'evaluation', 'inference', 'matching', 'metrics', 'production', 'ranking', 'recommendation']
+2026-06-20 22:05:59 | __main__                       | INFO    | Phase 2+3+4: Streaming candidates, pre-filtering, and calculating structured features...
