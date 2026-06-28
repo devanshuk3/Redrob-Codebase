@@ -41,7 +41,7 @@ Thumbs.db
 # Project Specific Data & Models
 # Keep the folder structure intact via .gitkeep but ignore all other contents
 data/*
-!data/.gitkeep
+!data/job_description.md
 
 models/*
 !models/.gitkeep
