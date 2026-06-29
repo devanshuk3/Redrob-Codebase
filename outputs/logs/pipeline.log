@@ -2761,3 +2761,123 @@
 2026-06-29 21:25:26 | __main__                       | INFO    | Top candidate: CAND_0018499 (score: 0.7624)
 2026-06-29 21:25:26 | __main__                       | INFO    | 100th candidate: CAND_0001610 (score: 0.5140)
 2026-06-29 21:25:26 | __main__                       | INFO    | ======================================================================
+2026-06-29 22:21:12 | __main__                       | INFO    | ======================================================================
+2026-06-29 22:21:12 | __main__                       | INFO    | RedRob Candidate Ranking Pipeline — Starting
+2026-06-29 22:21:12 | __main__                       | INFO    | ======================================================================
+2026-06-29 22:21:12 | __main__                       | INFO    | Phase 1: Parsing job description...
+2026-06-29 22:21:13 | src.features.jd_feature_mapper | INFO    | JD parsed: 33 must-have skills, 0 preferred, experience range: [5.0, 9.0], 12 domain keywords
+2026-06-29 22:21:13 | __main__                       | INFO    |   Must-have skills: ['a/b test', 'a/b testing', 'distributed systems', 'elasticsearch', 'embedding', 'embeddings', 'faiss', 'fine-tune', 'fine-tuning', 'git']
+2026-06-29 22:21:13 | __main__                       | INFO    |   Experience range: [5.0, 9.0]
+2026-06-29 22:21:13 | __main__                       | INFO    |   Domain keywords: ['deployment', 'distributed', 'embedding', 'evaluation', 'inference', 'matching', 'metrics', 'production', 'ranking', 'recommendation']
+2026-06-29 22:21:13 | __main__                       | INFO    | Phase 2+3+4: Streaming candidates, pre-filtering, and calculating structured features...
+2026-06-29 22:21:56 | __main__                       | INFO    | ======================================================================
+2026-06-29 22:21:56 | __main__                       | INFO    | RedRob Candidate Ranking Pipeline — Starting
+2026-06-29 22:21:56 | __main__                       | INFO    | ======================================================================
+2026-06-29 22:21:56 | __main__                       | INFO    | Phase 1: Parsing job description...
+2026-06-29 22:21:56 | src.features.jd_feature_mapper | INFO    | JD parsed: 33 must-have skills, 0 preferred, experience range: [5.0, 9.0], 12 domain keywords
+2026-06-29 22:21:56 | __main__                       | INFO    |   Must-have skills: ['a/b test', 'a/b testing', 'distributed systems', 'elasticsearch', 'embedding', 'embeddings', 'faiss', 'fine-tune', 'fine-tuning', 'git']
+2026-06-29 22:21:56 | __main__                       | INFO    |   Experience range: [5.0, 9.0]
+2026-06-29 22:21:56 | __main__                       | INFO    |   Domain keywords: ['deployment', 'distributed', 'embedding', 'evaluation', 'inference', 'matching', 'metrics', 'production', 'ranking', 'recommendation']
+2026-06-29 22:21:56 | __main__                       | INFO    | Phase 2+3+4: Streaming candidates, pre-filtering, and calculating structured features...
+2026-06-29 22:23:48 | __main__                       | INFO    |   Processed: 44599 candidates, 0 invalid, 55401 pre-filtered in 111.6s
+2026-06-29 22:23:48 | __main__                       | INFO    |   Selected top 5000 candidates by structured score for semantic reranking
+2026-06-29 22:23:48 | __main__                       | INFO    | Phase 6: Semantic embedding and similarity...
+2026-06-29 22:23:48 | src.semantic.embedding_store   | INFO    | No cached embeddings found
+2026-06-29 22:24:38 | src.semantic.embedding_generator | INFO    | CPU threading: 11 threads (from 22 logical cores)
+2026-06-29 22:24:38 | src.semantic.embedding_generator | INFO    | Downloading model: all-MiniLM-L6-v2 (forcing CPU)
+2026-06-29 22:26:07 | src.semantic.embedding_generator | INFO    | Model saved to C:\Users\Shristi Patel\Desktop\Hackathons\IndiaRuns\Redrob-Codebase\models\all-MiniLM-L6-v2
+2026-06-29 22:26:07 | src.semantic.embedding_generator | INFO    | Encoding 5000 texts in batches of 512
+2026-06-29 22:28:36 | src.semantic.embedding_generator | INFO    | Generated embeddings: shape (5000, 384)
+2026-06-29 22:28:36 | src.utils.io_utils             | INFO    | Saved numpy array (5000, 384) to C:\Users\Shristi Patel\Desktop\Hackathons\IndiaRuns\Redrob-Codebase\models\candidate_embeddings.npy
+2026-06-29 22:28:36 | src.utils.io_utils             | INFO    | Saved numpy array (5000,) to C:\Users\Shristi Patel\Desktop\Hackathons\IndiaRuns\Redrob-Codebase\models\candidate_ids.npy
+2026-06-29 22:28:36 | src.utils.io_utils             | INFO    | Saved numpy array (384,) to C:\Users\Shristi Patel\Desktop\Hackathons\IndiaRuns\Redrob-Codebase\models\jd_embedding.npy
+2026-06-29 22:28:37 | src.semantic.semantic_ranker   | INFO    | Computed semantic scores for 5000 candidates (mean=0.5318, max=0.6412)
+2026-06-29 22:28:37 | __main__                       | INFO    |   Computing concept embeddings...
+2026-06-29 22:28:37 | src.semantic.embedding_store   | INFO    | Concept embedding 'ranking' not found at C:\Users\Shristi Patel\Desktop\Hackathons\IndiaRuns\Redrob-Codebase\models\concept_ranking.npy
+2026-06-29 22:28:37 | src.semantic.embedding_generator | INFO    | Encoded concept 'ranking': shape (384,)
+2026-06-29 22:28:37 | src.semantic.embedding_generator | INFO    | Encoded concept 'evaluation': shape (384,)
+2026-06-29 22:28:37 | src.semantic.embedding_generator | INFO    | Encoded concept 'production': shape (384,)
+2026-06-29 22:28:37 | src.utils.io_utils             | INFO    | Saved numpy array (384,) to C:\Users\Shristi Patel\Desktop\Hackathons\IndiaRuns\Redrob-Codebase\models\concept_ranking.npy
+2026-06-29 22:28:37 | src.utils.io_utils             | INFO    | Saved numpy array (384,) to C:\Users\Shristi Patel\Desktop\Hackathons\IndiaRuns\Redrob-Codebase\models\concept_evaluation.npy
+2026-06-29 22:28:37 | src.utils.io_utils             | INFO    | Saved numpy array (384,) to C:\Users\Shristi Patel\Desktop\Hackathons\IndiaRuns\Redrob-Codebase\models\concept_production.npy
+2026-06-29 22:28:37 | src.semantic.embedding_store   | INFO    | Saved 3 concept embeddings to C:\Users\Shristi Patel\Desktop\Hackathons\IndiaRuns\Redrob-Codebase\models
+2026-06-29 22:28:37 | __main__                       | INFO    |   Concept embeddings computed and cached
+2026-06-29 22:28:37 | src.semantic.semantic_ranker   | INFO    | Computed concept scores for 5000 candidates across 3 concepts
+2026-06-29 22:28:37 | __main__                       | INFO    |   Semantic + concept scoring complete in 289.2s
+2026-06-29 22:28:37 | __main__                       | INFO    |   Computing lexical (TF-IDF) scores for hybrid retrieval...
+2026-06-29 22:28:39 | __main__                       | INFO    |   Lexical scoring complete in 1.9s
+2026-06-29 22:28:39 | __main__                       | INFO    | Phase 7: Score combination...
+2026-06-29 22:28:39 | src.ranking.score_combiner     | INFO    | Combined scores for 5000 candidates
+2026-06-29 22:28:39 | __main__                       | INFO    | Phase 8: Detailed honeypot on top 300 post-scoring...
+2026-06-29 22:28:39 | __main__                       | INFO    | Phase 8a: Cross-encoder reranking on top 300...
+2026-06-29 22:28:39 | src.semantic.cross_encoder_reranker | INFO    | Local cross-encoder cache not found — downloading 'cross-encoder/ms-marco-MiniLM-L-6-v2'
+2026-06-29 22:30:38 | src.semantic.cross_encoder_reranker | INFO    | Computed cross-encoder scores for 300 candidates (mean=0.0092, max=0.1124)
+2026-06-29 22:30:38 | __main__                       | INFO    |   Cross-encoder reranking complete in 119.0s
+2026-06-29 22:30:41 | __main__                       | INFO    |   Detailed honeypot: 234 survived from top 300 (44 hard-excluded, 20 clustered, 2 quality-filtered), in 121.4s
+2026-06-29 22:30:41 | src.ranking.submission_builder | INFO    |   Detailed honeypot CSV saved: outputs\debug\honeypots_detailed.csv (66 removed profiles)
+2026-06-29 22:30:41 | __main__                       | INFO    | Phase 9: Ranking and selection...
+2026-06-29 22:30:41 | src.ranking.ranker             | INFO    | Ranked top 100 candidates (score range: 0.8195 – 0.4819)
+2026-06-29 22:30:41 | __main__                       | INFO    | Phase 10: Generating reasoning...
+2026-06-29 22:30:41 | src.ranking.reasoning_generator | INFO    | Generated reasoning for 100 candidates
+2026-06-29 22:30:41 | __main__                       | INFO    | Phase 11: Building submission CSV...
+2026-06-29 22:30:41 | src.ranking.submission_builder | INFO    | Submission saved: C:\Users\Shristi Patel\Desktop\Hackathons\IndiaRuns\Redrob-Codebase\outputs\submission.csv (100 rows)
+2026-06-29 22:30:41 | src.ranking.submission_builder | INFO    | Debug candidate CSV saved: C:\Users\Shristi Patel\Desktop\Hackathons\IndiaRuns\Redrob-Codebase\outputs\debug\candidate_debug.csv (100 rows)
+2026-06-29 22:30:42 | src.ranking.submission_builder | INFO    | Full scores saved: C:\Users\Shristi Patel\Desktop\Hackathons\IndiaRuns\Redrob-Codebase\outputs\candidate_scores.csv (5000 rows)
+2026-06-29 22:30:42 | __main__                       | INFO    | ======================================================================
+2026-06-29 22:30:42 | __main__                       | INFO    | Pipeline complete in 525.5s
+2026-06-29 22:30:42 | __main__                       | INFO    | Submission: C:\Users\Shristi Patel\Desktop\Hackathons\IndiaRuns\Redrob-Codebase\outputs\submission.csv
+2026-06-29 22:30:42 | __main__                       | INFO    | Top candidate: CAND_0018499 (score: 0.8195)
+2026-06-29 22:30:42 | __main__                       | INFO    | 100th candidate: CAND_0091909 (score: 0.4819)
+2026-06-29 22:30:42 | __main__                       | INFO    | ======================================================================
+2026-06-29 22:31:21 | __main__                       | INFO    | ======================================================================
+2026-06-29 22:31:21 | __main__                       | INFO    | RedRob Candidate Ranking Pipeline — Starting
+2026-06-29 22:31:21 | __main__                       | INFO    | ======================================================================
+2026-06-29 22:31:21 | __main__                       | INFO    | Phase 1: Parsing job description...
+2026-06-29 22:31:21 | src.features.jd_feature_mapper | INFO    | JD parsed: 33 must-have skills, 0 preferred, experience range: [5.0, 9.0], 12 domain keywords
+2026-06-29 22:31:21 | __main__                       | INFO    |   Must-have skills: ['a/b test', 'a/b testing', 'distributed systems', 'elasticsearch', 'embedding', 'embeddings', 'faiss', 'fine-tune', 'fine-tuning', 'git']
+2026-06-29 22:31:21 | __main__                       | INFO    |   Experience range: [5.0, 9.0]
+2026-06-29 22:31:21 | __main__                       | INFO    |   Domain keywords: ['deployment', 'distributed', 'embedding', 'evaluation', 'inference', 'matching', 'metrics', 'production', 'ranking', 'recommendation']
+2026-06-29 22:31:21 | __main__                       | INFO    | Phase 2+3+4: Streaming candidates, pre-filtering, and calculating structured features...
+2026-06-29 22:33:45 | __main__                       | INFO    |   Processed: 44599 candidates, 0 invalid, 55401 pre-filtered in 143.8s
+2026-06-29 22:33:45 | __main__                       | INFO    |   Selected top 5000 candidates by structured score for semantic reranking
+2026-06-29 22:33:45 | __main__                       | INFO    | Phase 6: Semantic embedding and similarity...
+2026-06-29 22:33:45 | src.utils.io_utils             | INFO    | Loaded numpy array (5000, 384) from C:\Users\Shristi Patel\Desktop\Hackathons\IndiaRuns\Redrob-Codebase\models\candidate_embeddings.npy
+2026-06-29 22:33:46 | src.utils.io_utils             | INFO    | Loaded numpy array (5000,) from C:\Users\Shristi Patel\Desktop\Hackathons\IndiaRuns\Redrob-Codebase\models\candidate_ids.npy
+2026-06-29 22:33:46 | src.semantic.embedding_store   | INFO    | Loaded 5000 cached embeddings
+2026-06-29 22:33:46 | __main__                       | INFO    |   Using cached candidate embeddings
+2026-06-29 22:33:46 | src.utils.io_utils             | INFO    | Loaded numpy array (384,) from C:\Users\Shristi Patel\Desktop\Hackathons\IndiaRuns\Redrob-Codebase\models\jd_embedding.npy
+2026-06-29 22:33:46 | __main__                       | INFO    |   Using cached JD embedding
+2026-06-29 22:33:46 | src.semantic.semantic_ranker   | INFO    | Computed semantic scores for 5000 candidates (mean=0.5318, max=0.6412)
+2026-06-29 22:33:46 | __main__                       | INFO    |   Computing concept embeddings...
+2026-06-29 22:33:46 | src.utils.io_utils             | INFO    | Loaded numpy array (384,) from C:\Users\Shristi Patel\Desktop\Hackathons\IndiaRuns\Redrob-Codebase\models\concept_ranking.npy
+2026-06-29 22:33:46 | src.utils.io_utils             | INFO    | Loaded numpy array (384,) from C:\Users\Shristi Patel\Desktop\Hackathons\IndiaRuns\Redrob-Codebase\models\concept_evaluation.npy
+2026-06-29 22:33:46 | src.utils.io_utils             | INFO    | Loaded numpy array (384,) from C:\Users\Shristi Patel\Desktop\Hackathons\IndiaRuns\Redrob-Codebase\models\concept_production.npy
+2026-06-29 22:33:46 | src.semantic.embedding_store   | INFO    | Loaded 3 concept embeddings from C:\Users\Shristi Patel\Desktop\Hackathons\IndiaRuns\Redrob-Codebase\models
+2026-06-29 22:33:46 | __main__                       | INFO    |   Using cached concept embeddings
+2026-06-29 22:33:46 | src.semantic.semantic_ranker   | INFO    | Computed concept scores for 5000 candidates across 3 concepts
+2026-06-29 22:33:46 | __main__                       | INFO    |   Semantic + concept scoring complete in 0.6s
+2026-06-29 22:33:46 | __main__                       | INFO    |   Computing lexical (TF-IDF) scores for hybrid retrieval...
+2026-06-29 22:33:47 | __main__                       | INFO    |   Lexical scoring complete in 1.7s
+2026-06-29 22:33:47 | __main__                       | INFO    | Phase 7: Score combination...
+2026-06-29 22:33:48 | src.ranking.score_combiner     | INFO    | Combined scores for 5000 candidates
+2026-06-29 22:33:48 | __main__                       | INFO    | Phase 8: Detailed honeypot on top 300 post-scoring...
+2026-06-29 22:33:48 | __main__                       | INFO    | Phase 8a: Cross-encoder reranking on top 300...
+2026-06-29 22:34:13 | src.semantic.cross_encoder_reranker | INFO    | Local cross-encoder cache not found — downloading 'cross-encoder/ms-marco-MiniLM-L-6-v2'
+2026-06-29 22:36:13 | src.semantic.cross_encoder_reranker | INFO    | Computed cross-encoder scores for 300 candidates (mean=0.0092, max=0.1124)
+2026-06-29 22:36:13 | __main__                       | INFO    |   Cross-encoder reranking complete in 145.5s
+2026-06-29 22:36:16 | __main__                       | INFO    |   Detailed honeypot: 234 survived from top 300 (44 hard-excluded, 20 clustered, 2 quality-filtered), in 147.9s
+2026-06-29 22:36:16 | src.ranking.submission_builder | INFO    |   Detailed honeypot CSV saved: outputs\debug\honeypots_detailed.csv (66 removed profiles)
+2026-06-29 22:36:16 | __main__                       | INFO    | Phase 9: Ranking and selection...
+2026-06-29 22:36:16 | src.ranking.ranker             | INFO    | Ranked top 100 candidates (score range: 0.8195 – 0.4819)
+2026-06-29 22:36:16 | __main__                       | INFO    | Phase 10: Generating reasoning...
+2026-06-29 22:36:16 | src.ranking.reasoning_generator | INFO    | Generated reasoning for 100 candidates
+2026-06-29 22:36:16 | __main__                       | INFO    | Phase 11: Building submission CSV...
+2026-06-29 22:36:16 | src.ranking.submission_builder | INFO    | Submission saved: C:\Users\Shristi Patel\Desktop\Hackathons\IndiaRuns\Redrob-Codebase\outputs\submission.csv (100 rows)
+2026-06-29 22:36:16 | src.ranking.submission_builder | INFO    | Debug candidate CSV saved: C:\Users\Shristi Patel\Desktop\Hackathons\IndiaRuns\Redrob-Codebase\outputs\debug\candidate_debug.csv (100 rows)
+2026-06-29 22:36:16 | src.ranking.submission_builder | INFO    | Full scores saved: C:\Users\Shristi Patel\Desktop\Hackathons\IndiaRuns\Redrob-Codebase\outputs\candidate_scores.csv (5000 rows)
+2026-06-29 22:36:16 | __main__                       | INFO    | ======================================================================
+2026-06-29 22:36:16 | __main__                       | INFO    | Pipeline complete in 295.0s
+2026-06-29 22:36:16 | __main__                       | INFO    | Submission: C:\Users\Shristi Patel\Desktop\Hackathons\IndiaRuns\Redrob-Codebase\outputs\submission.csv
+2026-06-29 22:36:16 | __main__                       | INFO    | Top candidate: CAND_0018499 (score: 0.8195)
+2026-06-29 22:36:16 | __main__                       | INFO    | 100th candidate: CAND_0091909 (score: 0.4819)
+2026-06-29 22:36:16 | __main__                       | INFO    | ======================================================================
