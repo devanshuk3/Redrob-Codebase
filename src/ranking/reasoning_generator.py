@@ -71,6 +71,7 @@ def _deduplicate_skills(skills: List[str]) -> List[str]:
     return result
 
 
+
 def _relative_weakness_clause(scores: Dict[str, Any], rank: int, total: int) -> str:
     """
     For candidates outside the top tier, name the candidate's own
@@ -123,10 +124,33 @@ def _relative_weakness_clause(scores: Dict[str, Any], rank: int, total: int) -> 
 
     # Bottom tier — always surface it, even if the gap is modest
     return (
-        f"Ranks lower in this pool mainly due to {weakest_label} ({weakest_value:.2f}), "
-        f"its softest signal relative to {strongest_label} ({strongest_value:.2f})"
+        f"Ranks behind the strongest candidates primarily on {weakest_label} "
+        f"({weakest_value:.2f} vs. {strongest_value:.2f} on {strongest_label}) — "
+        f"the technical depth is there, but the exact JD keywords are missing."
     )
 
+def _extract_transferable_domain(candidate: Candidate) -> str:
+    """
+    Scans career descriptions and summary to identify if an 'adjacent'
+    candidate actually built a system that relies on retrieval/ranking fundamentals.
+    """
+    career_text = " ".join([c.description.lower() for c in candidate.career_history if c.description])
+    summary = (candidate.summary or "").lower()
+    full_text = f"{career_text} {summary}"
+
+    domains = {
+        "recommendation systems": ["recommendation", "recommender", "recsys"],
+        "search infrastructure": ["search engine", "search relevance", "information retrieval"],
+        "ranking systems": ["learning to rank", "ranking pipeline", "re-ranking"],
+        "e-commerce personalization": ["e-commerce", "product ranking", "personalization"],
+        "ad-tech / sponsored content": ["ad-tech", "sponsored", "ad ranking", "pricing optimization"],
+        "marketplace matching": ["marketplace", "matchmaking", "two-sided market"],
+    }
+
+    for domain_name, keywords in domains.items():
+        if any(kw in full_text for kw in keywords):
+            return domain_name
+    return ""
 
 def _build_reasoning(
     scores: Dict[str, Any],
@@ -137,6 +161,7 @@ def _build_reasoning(
     """Build a reasoning string from actual candidate data structured into 4 parts."""
     yoe = candidate.years_of_experience
     cid_num = 0
+    rank = scores.get("rank")
     try:
         cid_num = int(candidate.candidate_id.split("_")[1])
     except:
@@ -219,7 +244,21 @@ def _build_reasoning(
         else:
             tech_sentence = f"Possesses {yoe:.0f} years of experience specializing in {concept_str}{', relevant to ' + jd_fit_str if jd_fit_str else ''}."
     else:
-        tech_sentence = f"Adjacent ML/engineering background ({yoe:.0f} YOE) without direct matches to the JD's core retrieval/ranking requirements."
+        # Check if they have a transferable domain
+        transfer_domain = _extract_transferable_domain(candidate)
+        if transfer_domain:
+            tech_sentence = (
+                f"Adjacent ML/engineering background ({yoe:.0f} YOE) in **{transfer_domain}** — "
+                "while it lacks exact JD keyword overlap, this domain relies on identical retrieval, "
+                "ranking, and A/B testing infrastructure that the JD explicitly values. "
+                "Ranked highly based on strong production & system design signals, not keyword matching."
+            )
+        else:
+            tech_sentence = (
+                f"Adjacent ML/engineering background ({yoe:.0f} YOE) without transferable "
+                "retrieval/ranking experience (e.g., search, recsys, ad-tech). Generic engineering "
+                "background does not map to the JD's core matching/ranking needs."
+            )
 
     # ── Sentence 2 — Production Signal (Fix #5: reference JD's "ship in weeks" culture) ──
     career_desc = " ".join(
@@ -343,7 +382,10 @@ def _build_reasoning(
         concerns.append("high consulting services exposure")
 
     if not matched_skills:
-        concerns.append("no direct JD skill matches found")
+        # Only surface this for bottom-half candidates; top-half adjacent candidates
+        # already have an explanation in their first sentence.
+        if rank is not None and rank > (total_ranked // 2):
+            concerns.append("no direct JD skill matches found")
 
     if yoe < 3.0:
         concerns.append("total experience is below target seniority threshold")
