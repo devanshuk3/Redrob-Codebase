@@ -44,6 +44,7 @@ def generate_reasoning(
     Returns:
         Same list with 'reasoning' field added.
     """
+    total_ranked = len(ranked_candidates)
     for entry in ranked_candidates:
         cid = entry["candidate_id"]
         candidate = candidate_map.get(cid)
@@ -52,7 +53,7 @@ def generate_reasoning(
             entry["reasoning"] = "Candidate data not available."
             continue
 
-        entry["reasoning"] = _build_reasoning(entry, candidate, jd_features)
+        entry["reasoning"] = _build_reasoning(entry, candidate, jd_features, total_ranked)
 
     logger.info(f"Generated reasoning for {len(ranked_candidates)} candidates")
     return ranked_candidates
@@ -70,10 +71,68 @@ def _deduplicate_skills(skills: List[str]) -> List[str]:
     return result
 
 
+def _relative_weakness_clause(scores: Dict[str, Any], rank: int, total: int) -> str:
+    """
+    For candidates outside the top tier, name the candidate's own
+    comparatively weakest scoring dimension, using its real value.
+
+    This exists to fix two related problems with purely template-driven
+    reasoning:
+      - "Honest concerns": a candidate ranked 90th should read differently
+        from one ranked 1st, even when no hard concern (visa, notice
+        period, etc.) happens to trigger.
+      - "Variation": the named dimension and its real numeric value differ
+        candidate to candidate, so this clause can't collapse into a
+        handful of repeated stock phrases the way a purely categorical
+        template can.
+
+    Returns "" when there's nothing meaningful to say (top tier, or not
+    enough score components available to make a fair comparison).
+    """
+    if total <= 0 or rank is None:
+        return ""
+
+    top_tier_cutoff = max(10, round(total * 0.10))
+    mid_tier_cutoff = max(top_tier_cutoff, round(total * 0.50))
+
+    components = {
+        "semantic alignment with the JD": scores.get("semantic_score"),
+        "structured technical fit": scores.get("structured_score"),
+        "behavioral/hiring-readiness signal": scores.get("behavioral_score"),
+        "profile quality/trust signal": scores.get("quality_score"),
+    }
+    available = {k: v for k, v in components.items() if v is not None}
+
+    if rank <= top_tier_cutoff:
+        return ""  # top tier — let the reasoning stand on its own merits
+    if len(available) < 2:
+        return ""  # not enough components for a fair comparison
+
+    weakest_label, weakest_value = min(available.items(), key=lambda kv: kv[1])
+    strongest_label, strongest_value = max(available.items(), key=lambda kv: kv[1])
+    gap = strongest_value - weakest_value
+
+    if rank <= mid_tier_cutoff:
+        # Mid tier — only worth mentioning if there's a real, meaningful gap
+        if weakest_value >= 0.55 or gap < 0.15:
+            return ""
+        return (
+            f"Ranks behind the strongest candidates primarily on {weakest_label} "
+            f"({weakest_value:.2f} vs. {strongest_value:.2f} on {strongest_label})"
+        )
+
+    # Bottom tier — always surface it, even if the gap is modest
+    return (
+        f"Ranks lower in this pool mainly due to {weakest_label} ({weakest_value:.2f}), "
+        f"its softest signal relative to {strongest_label} ({strongest_value:.2f})"
+    )
+
+
 def _build_reasoning(
     scores: Dict[str, Any],
     candidate: Candidate,
     jd_features: JDFeatures,
+    total_ranked: int = 100,
 ) -> str:
     """Build a reasoning string from actual candidate data structured into 4 parts."""
     yoe = candidate.years_of_experience
@@ -90,7 +149,7 @@ def _build_reasoning(
     tools = [s for s in matched_skills if s.lower() in _TOOL_NAMES]
     concepts = [s for s in matched_skills if s.lower() not in _TOOL_NAMES]
 
-    pattern_idx = cid_num % 5
+    pattern_idx = cid_num % 8
     tool_str = ", ".join(tools[:3]) if tools else ""
     first_concept = concepts[0].lower() if concepts else ""
     concept_str = ", ".join(concepts[:3]) if concepts else ""
@@ -124,8 +183,14 @@ def _build_reasoning(
                 tech_sentence = f"An experienced ML professional with {yoe:.0f} YOE specializing in {first_concept} and {tool_str}, matching the role's {jd_fit_str} requirements."
             elif pattern_idx == 3:
                 tech_sentence = f"Possesses {yoe:.0f} YOE with hands-on {tool_str} experience applicable to the JD's {jd_fit_str} needs."
-            else:
+            elif pattern_idx == 4:
                 tech_sentence = f"Strong {first_concept} and {tool_str} background over {yoe:.0f} years, relevant to the role's {jd_fit_str} scope."
+            elif pattern_idx == 5:
+                tech_sentence = f"{yoe:.0f} years deep in {first_concept}, with {tool_str} on the resume — a near match for the JD's {jd_fit_str} ask."
+            elif pattern_idx == 6:
+                tech_sentence = f"Carries {tool_str} expertise from {yoe:.0f} years of hands-on work, mapping cleanly onto {jd_fit_str}."
+            else:
+                tech_sentence = f"A {yoe:.0f}-year track record built around {first_concept}, with practical {tool_str} exposure that speaks directly to {jd_fit_str}."
         else:
             if pattern_idx == 0:
                 tech_sentence = f"Brings {yoe:.0f} years of ML experience, with a focus on {first_concept} and proficiency in {tool_str}."
@@ -135,8 +200,14 @@ def _build_reasoning(
                 tech_sentence = f"An experienced ML professional with {yoe:.0f} YOE, specializing in {first_concept} and utilizing {tool_str} in production."
             elif pattern_idx == 3:
                 tech_sentence = f"Possesses {yoe:.0f} YOE and a solid background in {concepts[0]}, with hands-on skill in {tool_str}."
-            else:
+            elif pattern_idx == 4:
                 tech_sentence = f"Strong background in {first_concept} and {tool_str} developed over {yoe:.0f} years in the industry."
+            elif pattern_idx == 5:
+                tech_sentence = f"{yoe:.0f} years of hands-on {first_concept} work, with {tool_str} as part of the regular toolkit."
+            elif pattern_idx == 6:
+                tech_sentence = f"Carries {tool_str} experience built up over {yoe:.0f} years working in {first_concept}."
+            else:
+                tech_sentence = f"A {yoe:.0f}-year career centered on {first_concept}, backed by practical use of {tool_str}."
     elif tools:
         if pattern_idx % 2 == 0:
             tech_sentence = f"Demonstrated expertise with {tool_str} ({yoe:.0f} YOE) in production environments{', relevant to ' + jd_fit_str if jd_fit_str else ''}."
@@ -160,15 +231,21 @@ def _build_reasoning(
                    "qps", "production", "shipped", "deployed"]
     )
     prod_score = scores.get("production_score", 0.0)
-    prod_pattern = cid_num % 3
+    prod_pattern = cid_num % 6
 
     if prod_score >= 0.6 or has_scale:
         if prod_pattern == 0:
             prod_sentence = "Proven experience deploying ML systems to production at scale, matching the JD's 'ship a working ranker in a week' culture."
         elif prod_pattern == 1:
             prod_sentence = "Has a track record of deploying robust ML systems to production, consistent with the role's emphasis on shipping over theorizing."
-        else:
+        elif prod_pattern == 2:
             prod_sentence = "Experienced in taking models from research to production with scalability focus, fitting the founding-team velocity expectations."
+        elif prod_pattern == 3:
+            prod_sentence = "Has shipped ML systems under real production constraints, the kind of background the JD's fast-moving founding team is looking for."
+        elif prod_pattern == 4:
+            prod_sentence = "Comfortable owning a model end-to-end through deployment, rather than stopping at the research stage the JD explicitly wants to avoid."
+        else:
+            prod_sentence = "Track record includes live, production-facing ML work — a direct match for the JD's bias toward shipping over theorizing."
     elif prod_score >= 0.35:
         if prod_pattern == 0:
             prod_sentence = "Familiar with production ML pipelines, though depth of deployment experience is moderate relative to the JD's production-first expectations."
@@ -227,10 +304,15 @@ def _build_reasoning(
             hiring_parts.append(f"a {notice}-day notice period")
 
         if hiring_parts:
-            if cid_num % 2 == 0:
+            connector = cid_num % 4
+            if connector == 0:
                 hiring_sentence = f"The candidate shows {', '.join(hiring_parts)}."
-            else:
+            elif connector == 1:
                 hiring_sentence = f"Features {', '.join(hiring_parts)}."
+            elif connector == 2:
+                hiring_sentence = f"On the hiring-readiness side: {', '.join(hiring_parts)}."
+            else:
+                hiring_sentence = f"Signals worth noting include {', '.join(hiring_parts)}."
         else:
             hiring_sentence = "Hiring readiness is within typical parameters."
 
@@ -267,6 +349,11 @@ def _build_reasoning(
         concerns.append("total experience is below target seniority threshold")
     elif yoe >= 15.0:
         concerns.append("years of experience significantly exceed target range")
+
+    rank = scores.get("rank")
+    weakness_clause = _relative_weakness_clause(scores, rank, total_ranked)
+    if weakness_clause:
+        concerns.append(weakness_clause)
 
     if concerns:
         concern_sentence = f"Note: {'; '.join(concerns)}."

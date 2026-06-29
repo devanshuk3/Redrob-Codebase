@@ -37,6 +37,16 @@ class Config:
     SENTENCE_MODEL_DIR = os.path.join(MODELS_DIR, "all-MiniLM-L6-v2")
     EMBEDDING_BATCH_SIZE = 512
 
+    # Cross-Encoder Reranking (top-300 stage — joint JD+candidate relevance)
+    CROSS_ENCODER_MODEL_NAME = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    CROSS_ENCODER_MODEL_DIR = os.path.join(MODELS_DIR, "ms-marco-MiniLM-L-6-v2")
+    CROSS_ENCODER_BATCH_SIZE = 32
+    CROSS_ENCODER_MAX_LENGTH = 512          # tokens, total for the pair
+    CROSS_ENCODER_TEXT_MAX_CHARS = 800      # per side (JD, candidate) — keeps the
+                                             # pair comfortably under the token limit
+    CROSS_ENCODER_MODIFIER_STRENGTH = 0.15  # placeholder multiplicative weight —
+                                             # replace with a learned-fusion feature
+                                             # in score_combiner.py once that's ready
     # Final Score Weights (TASK 11 — rebalanced)
     # technical_fit=60%, experience_fit=20%, behavioral_fit=15%, hiring_fit=5%
     # semantic ≈ holistic technical signal, structured = granular technical+experience

@@ -52,6 +52,7 @@ from src.semantic.text_builder import build_candidate_text, build_jd_text
 from src.semantic.embedding_generator import EmbeddingGenerator
 from src.semantic.embedding_store import EmbeddingStore
 from src.semantic.semantic_ranker import compute_semantic_scores, compute_concept_scores
+from src.semantic.cross_encoder_reranker import compute_cross_encoder_scores
 from src.ranking.score_combiner import combine_scores
 from src.ranking.ranker import rank_candidates
 from src.ranking.mmr_reranker import mmr_rerank
@@ -302,6 +303,45 @@ def main():
     scored_candidates.sort(key=lambda x: x["final_score"], reverse=True)
     top_300 = scored_candidates[:300]
     candidate_map_all = {c.candidate_id: c for c in top_k_candidates}
+    
+    # 9a. Cross-Encoder Reranking on Top 300 (joint JD+candidate relevance)
+    logger.info("Phase 8a: Cross-encoder reranking on top 300...")
+    t0_ce = time.time()
+
+    cross_encoder_candidates = [
+        candidate_map_all[e["candidate_id"]]
+        for e in top_300
+        if e["candidate_id"] in candidate_map_all
+    ]
+    cross_encoder_scores = compute_cross_encoder_scores(jd_raw_text, cross_encoder_candidates)
+
+    # Normalize within this batch before using it as a modifier. Cross-encoder
+    # models trained on short web-search query/passage pairs (like
+    # ms-marco-MiniLM) are often badly miscalibrated on long-form JD-vs-profile
+    # text — raw sigmoid outputs can cluster far from 0.5 (e.g. all under 0.12)
+    # even when the model IS meaningfully differentiating between candidates.
+    # Anchoring the modifier to a fixed 0.5 midpoint in that case applies an
+    # almost uniform shrink to everyone instead of an actual rerank. Min-max
+    # normalizing within the batch uses the model's real relative ordering
+    # instead of assuming its absolute scale means anything here.
+    ce_values = list(cross_encoder_scores.values())
+    ce_min, ce_max = (min(ce_values), max(ce_values)) if ce_values else (0.0, 1.0)
+    ce_range = ce_max - ce_min
+
+    for entry in top_300:
+        ce_raw = cross_encoder_scores.get(entry["candidate_id"], 0.5)
+        entry["cross_encoder_score"] = ce_raw
+        ce_norm = (ce_raw - ce_min) / ce_range if ce_range > 1e-9 else 0.5
+        entry["cross_encoder_score_normalized"] = round(ce_norm, 4)
+        # Placeholder multiplicative modifier — once cross_encoder_score is
+        # wired into score_combiner.py as a learned-fusion feature, this
+        # block can go away entirely.
+        ce_mult = 1.0 + Config.CROSS_ENCODER_MODIFIER_STRENGTH * (ce_norm - 0.5)
+        entry["final_score"] = round(entry["final_score"] * ce_mult, 6)
+
+    top_300.sort(key=lambda x: x["final_score"], reverse=True)
+    logger.info(f"  Cross-encoder reranking complete in {time.time() - t0_ce:.1f}s")
+
     
     # --------------------------------------------------------------
     # NEW: MinHash-LSH cluster detection on Top 300 (Scalable)
