@@ -41,8 +41,9 @@ class Config:
     # technical_fit=60%, experience_fit=20%, behavioral_fit=15%, hiring_fit=5%
     # semantic ≈ holistic technical signal, structured = granular technical+experience
     # behavioral = hiring readiness, quality = profile trust
-    WEIGHT_SEMANTIC = 0.20        # semantic similarity to JD
-    WEIGHT_STRUCTURED = 0.55      # detailed technical + experience scoring
+    WEIGHT_LEXICAL = 0.10   
+    WEIGHT_SEMANTIC = 0.15        # semantic similarity to JD
+    WEIGHT_STRUCTURED = 0.50      # detailed technical + experience scoring
     WEIGHT_BEHAVIORAL = 0.15      # hiring readiness signals
     WEIGHT_QUALITY = 0.10         # profile trustworthiness
 

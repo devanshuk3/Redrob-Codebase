@@ -334,3 +334,140 @@ def build_debug_csv(
     df = pd.DataFrame(rows)
     df.to_csv(output_path, index=False, encoding="utf-8")
     logger.info(f"Debug candidate CSV saved: {output_path} ({len(df)} rows)")
+
+def build_honeypot_debug_csv(removed_honeypots: list, output_dir: str = None) -> None:
+    """
+    Generate a detailed debug CSV with reasoning for every removed honeypot.
+    """
+    import os
+    import pandas as pd
+    from src.features.skill_extractor import get_matched_skills  # if needed
+
+    if output_dir is None:
+        output_dir = os.path.join("outputs", "debug")
+    os.makedirs(output_dir, exist_ok=True)
+
+    rows = []
+    for item in removed_honeypots:
+        entry = item["entry"]
+        cand = item["candidate"]
+
+        # Extract profile details
+        title = cand.current_title if cand else "Unknown"
+        yoe = cand.years_of_experience if cand else 0
+        skills = [s.name for s in cand.skills[:8]] if cand and cand.skills else []
+        skills_str = ", ".join(skills)
+
+        # Career history (first 2 roles)
+        career_parts = []
+        for c in (cand.career_history[:2] if cand else []):
+            career_parts.append(f"{c.title} at {c.company} ({c.duration_months} mos)")
+        career_str = "; ".join(career_parts)
+
+        # Education details
+        edu_parts = []
+        for e in (cand.education if cand else []):
+            edu_parts.append(f"{e.degree} in {e.field_of_study} ({e.start_year}-{e.end_year})")
+        edu_str = "; ".join(edu_parts)
+
+        # --- Dynamic Reasoning Builder (exactly like submission.csv style) ---
+        reason = item["reason"]
+        issue_names = item["issue_names"].split(", ")
+
+        reasoning_parts = []
+
+        # 1. Opening sentence: State the removal reason with specific evidence
+        if reason == "hard_excluded":
+            if "HONEYPOT" in issue_names and "EDUCATION_CHRONOLOGY" in issue_names:
+                edu_issues = []
+                for i in range(len(cand.education)):
+                    for j in range(i+1, len(cand.education)):
+                        e1 = cand.education[i]
+                        e2 = cand.education[j]
+                        if e1.end_year and e2.end_year:
+                            if e2.end_year < e1.end_year and "Master" in e2.degree and "Bachelor" in e1.degree:
+                                edu_issues.append(f"{e2.degree} ({e2.start_year}-{e2.end_year}) ends before {e1.degree} ({e1.start_year}-{e1.end_year})")
+                            elif e1.end_year < e2.end_year and "Master" in e1.degree and "Bachelor" in e2.degree:
+                                edu_issues.append(f"{e1.degree} ({e1.start_year}-{e1.end_year}) ends before {e2.degree} ({e2.start_year}-{e2.end_year})")
+
+                if edu_issues:
+                    reasoning_parts.append(f"Hard-excluded due to impossible education chronology: {edu_issues[0]}. This is a logical impossibility—higher degree cannot end before lower degree.")
+                else:
+                    reasoning_parts.append(f"Hard-excluded due to chronological contradictions in education timeline ({edu_str}). Profile shows degree ordering that is physically impossible.")
+
+            elif "HONEYPOT" in issue_names:
+                reasoning_parts.append(f"Hard-excluded due to honeypot signals—profile contains subtle logical contradictions (e.g., overlapping degrees, impossible career progression). {title} with {yoe:.1f} YOE flagged.")
+
+            elif "CONSULTING_ONLY" in issue_names:
+                companies = [c.company for c in (cand.career_history if cand else [])]
+                consulting_companies = [c for c in companies if any(kw in c.lower() for kw in ["tcs", "infosys", "wipro", "accenture", "cognizant", "capgemini", "hcl", "tech mahindra"])]
+                consulting_str = ", ".join(consulting_companies[:3])
+                reasoning_parts.append(f"Hard-excluded: Entire career history is at consulting firms ({consulting_str}) with no product-company experience. The JD explicitly states: 'People who have only worked at consulting firms... bad fit.'")
+
+            elif "SUMMARY_CONTRADICTION" in issue_names:
+                summary = cand.summary[:100] if cand and cand.summary else ""
+                reasoning_parts.append(f"Hard-excluded: Summary claims '{summary}...' but career history shows no evidence of retrieval/ranking/AI experience. Profile contradiction triggered exclusion.")
+
+            elif "SKILL_DOMAIN_MISMATCH" in issue_names:
+                reasoning_parts.append(f"Hard-excluded: Skills include domains (Design, Sales, Accounting) not supported by career history. {title} with {yoe:.1f} YOE removed due to skill domain mismatch.")
+
+            else:
+                reasoning_parts.append(f"Hard-excluded: Profile triggered multiple exclusion rules. {title} with {yoe:.1f} YOE removed. Issues: {', '.join(issue_names)}.")
+
+        elif reason == "clustered":
+            total_clustered = len([x for x in removed_honeypots if x['reason'] == 'clustered'])
+            reasoning_parts.append(f"Clustered: Profile is >90% semantically identical to {total_clustered-1} other templated candidates in Top 300. Summary and skills structure match synthetic generation patterns.")
+            if skills:
+                reasoning_parts.append(f"Skills include {skills_str}—common in templated profiles—but career details lack specificity.")
+            reasoning_parts.append("Removed because this appears to be part of a synthetic batch generated from a single template, not a genuine candidate.")
+
+        elif reason == "quality_filtered":
+            if any("Computer Vision" in title or "CV" in title or "Vision" in title for title in [cand.current_title if cand else ""]):
+                reasoning_parts.append(f"Quality-filtered: Primary expertise is Computer Vision/Speech/Robotics without significant NLP/IR exposure. {title} with {yoe:.1f} YOE removed—JD explicitly excludes CV-primary candidates.")
+            else:
+                q_score = entry.get("quality_score", 0.0)
+                reasoning_parts.append(f"Quality-filtered: Profile quality score ({q_score:.2f}) below threshold ({Config.QUALITY_FILTER_THRESHOLD}).")
+                if skills:
+                    reasoning_parts.append(f"Skills: {skills_str}. Profile lacks sufficient quality signals to remain in Top 300.")
+            reasoning_parts.append("Low profile completeness/consistency triggered automatic exclusion.")
+
+        # 2. Add context: Skills, Education, Career
+        if cand and cand.education:
+            reasoning_parts.append(f"Education: {edu_str}.")
+        if cand and cand.career_history:
+            reasoning_parts.append(f"Career: {career_str}.")
+        if skills and reason != "clustered":
+            reasoning_parts.append(f"Skills: {skills_str}.")
+
+        # 3. Final sentence
+        reasoning_parts.append("Removed from Top 300 to prevent contamination of final Top 100 submission.")
+
+        reasoning = " ".join(reasoning_parts)
+        reasoning = reasoning.replace("  ", " ").strip()
+        if not reasoning.endswith("."):
+            reasoning += "."
+
+        rows.append({
+            "candidate_id": entry["candidate_id"],
+            "final_score": round(entry.get("final_score", 0.0), 6),
+            "semantic_score": round(entry.get("semantic_score", 0.0), 6),
+            "structured_score": round(entry.get("structured_score", 0.0), 6),
+            "behavioral_score": round(entry.get("behavioral_score", 0.0), 6),
+            "quality_score": round(entry.get("quality_score", 0.0), 6),
+            "reason_removed": item["reason"],
+            "issue_names": item["issue_names"],
+            "reasoning": reasoning,
+            "current_title": cand.current_title if cand else "",
+            "years_of_experience": cand.years_of_experience if cand else 0,
+            "location": cand.location if cand else "",
+            "country": cand.country if cand else "",
+            "summary_full": cand.summary if cand and cand.summary else "",
+            "skills": skills_str,
+            "career_history": career_str,
+            "education_full": edu_str,
+        })
+
+    df_honeypots = pd.DataFrame(rows)
+    debug_path = os.path.join(output_dir, "honeypots_detailed.csv")
+    df_honeypots.to_csv(debug_path, index=False, encoding="utf-8")
+    logger.info(f"  Detailed honeypot CSV saved: {debug_path} ({len(rows)} removed profiles)")

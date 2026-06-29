@@ -36,10 +36,16 @@ import heapq
 from src.utils.io_utils import stream_jsonl
 from src.utils.config import Config
 from src.utils.logging_utils import get_logger
-from src.ingestion.data_loader import load_candidates
 from src.ingestion.schema_validator import validate_record
 from src.ingestion.candidate_parser import Candidate, parse_candidate
-from src.ingestion.honeypot_filter import compute_quality_score, _check_non_tech_role, fast_prefilter_raw, is_hard_excluded
+from src.ingestion.honeypot_filter import (
+    compute_quality_score,
+    _check_non_tech_role,
+    fast_prefilter_raw,
+    is_hard_excluded,
+    get_candidate_issues,
+    detect_lsh_clusters,       
+)
 from src.features.jd_feature_mapper import parse_job_description, JDFeatures
 from src.features.feature_builder import build_structured_features
 from src.semantic.text_builder import build_candidate_text, build_jd_text
@@ -50,9 +56,18 @@ from src.ranking.score_combiner import combine_scores
 from src.ranking.ranker import rank_candidates
 from src.ranking.mmr_reranker import mmr_rerank
 from src.ranking.reasoning_generator import generate_reasoning
-from src.ranking.submission_builder import build_submission, save_full_scores, build_debug_csv
+from src.ranking.submission_builder import (
+    build_submission,
+    save_full_scores,
+    build_debug_csv,
+    build_honeypot_debug_csv, 
+)
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 from src.utils.constants import (
-    RANKING_CONCEPT_TEXT, EVALUATION_CONCEPT_TEXT, PRODUCTION_CONCEPT_TEXT,
+    RANKING_CONCEPT_TEXT,
+    EVALUATION_CONCEPT_TEXT,
+    PRODUCTION_CONCEPT_TEXT,
 )
 
 logger = get_logger(__name__)
@@ -244,6 +259,27 @@ def main():
 
     logger.info(f"  Semantic + concept scoring complete in {time.time() - t0:.1f}s")
 
+    # ---- HYBRID: Lexical (TF-IDF) scoring ----
+    logger.info("  Computing lexical (TF-IDF) scores for hybrid retrieval...")
+    t_lex = time.time()
+    
+    # Prepare texts (already built earlier in the pipeline)
+    # jd_text and candidate_texts are already defined above
+    all_texts = [jd_text] + candidate_texts
+    vectorizer = TfidfVectorizer(stop_words='english', sublinear_tf=True, max_features=5000)
+    tfidf_matrix = vectorizer.fit_transform(all_texts)
+    jd_vec = tfidf_matrix[0:1]
+    candidate_vecs = tfidf_matrix[1:]
+    
+    lexical_similarities = cosine_similarity(jd_vec, candidate_vecs).flatten()
+    lexical_scores = np.clip(lexical_similarities, 0.0, 1.0)
+    
+    lexical_scores_dict = {
+        cid: float(score) for cid, score in zip(candidate_ids_list, lexical_scores)
+    }
+    
+    logger.info(f"  Lexical scoring complete in {time.time() - t_lex:.1f}s")
+
     # 8. Score Combination (with concept scores)
     logger.info("Phase 7: Score combination...")
 
@@ -251,13 +287,14 @@ def main():
     top_k_features = {cid: candidate_features[cid] for cid in top_k_ids}
     # Use default quality score for now (detailed honeypot runs post-scoring)
     top_k_quality = {cid: 0.5 for cid in top_k_ids}
-
+  
     scored_candidates = combine_scores(
         top_k_features, semantic_scores, top_k_quality,
-        concept_scores=concept_scores,
+        concept_scores=concept_scores,lexical_scores=lexical_scores_dict,
     )
 
     # 9. Detailed Honeypot on Top 300 (TASK E — staged)
+        
     logger.info("Phase 8: Detailed honeypot on top 300 post-scoring...")
     t0 = time.time()
 
@@ -265,48 +302,102 @@ def main():
     scored_candidates.sort(key=lambda x: x["final_score"], reverse=True)
     top_300 = scored_candidates[:300]
     candidate_map_all = {c.candidate_id: c for c in top_k_candidates}
+    
+    # --------------------------------------------------------------
+    # NEW: MinHash-LSH cluster detection on Top 300 (Scalable)
+    # --------------------------------------------------------------
+   
+    cluster_honeypot_ids = detect_lsh_clusters(top_300, candidate_map_all, threshold=0.85, min_cluster_size=3)
+    # --------------------------------------------------------------
 
-    # Run detailed quality scoring on top 300
+    # Run detailed quality scoring on top 300 (skip clustered profiles)
     quality_survivors = []
     hard_excluded_count = 0
+    cluster_skipped_count = 0
+    quality_filtered_count = 0
+    removed_honeypots = []
+
     for entry in top_300:
         cid = entry["candidate_id"]
         candidate = candidate_map_all.get(cid)
-        if candidate:
-            # Fix #1/#2/#3: Hard-exclude candidates with disqualifying signals
-            if is_hard_excluded(candidate):
-                hard_excluded_count += 1
-                continue
+        reason = None
+        details = ""
+        issue_names = ""
 
-            q_score = compute_quality_score(candidate)
-            candidate.quality_score = q_score
-            entry["quality_score"] = q_score
-            
-            # Recalculate final_score using the actual q_score
-            semantic = entry["semantic_score"]
-            structured = entry["structured_score"]
-            behavioral = entry["behavioral_score"]
-            base_initial = (
-                0.20 * semantic
-                + 0.55 * structured
-                + 0.15 * behavioral
-                + 0.10 * 0.5
-            )
-            base_new = (
-                0.20 * semantic
-                + 0.55 * structured
-                + 0.15 * behavioral
-                + 0.10 * q_score
-            )
-            if base_initial > 0:
-                entry["final_score"] = round(entry["final_score"] * (base_new / base_initial), 6)
-            else:
-                entry["final_score"] = 0.0
-                
-            if q_score >= Config.QUALITY_FILTER_THRESHOLD:
-                quality_survivors.append(entry)
-        else:
+        # --- Check 1: Cluster detection ---
+        if cid in cluster_honeypot_ids:
+            cluster_skipped_count += 1
+            reason = "clustered"
+            details = "Near-identical text profile (>90% similarity) to other candidates in top 300."
+            issue_names = "CLUSTERED_TEMPLATE"
+            removed_honeypots.append({
+                "entry": entry,
+                "candidate": candidate,
+                "reason": reason,
+                "details": details,
+                "issue_names": issue_names
+            })
+            continue
+
+        if not candidate:
             quality_survivors.append(entry)
+            continue
+
+        # --- Check 2: Hard exclusion ---
+        if is_hard_excluded(candidate):
+            hard_excluded_count += 1
+            reason = "hard_excluded"
+            issues = get_candidate_issues(candidate)
+            details = ", ".join(issues.keys())
+            issue_names = ", ".join(issues.keys())
+            removed_honeypots.append({
+                "entry": entry,
+                "candidate": candidate,
+                "reason": reason,
+                "details": details,
+                "issue_names": issue_names
+            })
+            continue
+
+        # --- Check 3: Quality score ---
+        q_score = compute_quality_score(candidate)
+        candidate.quality_score = q_score
+        entry["quality_score"] = q_score
+        
+        semantic = entry["semantic_score"]
+        structured = entry["structured_score"]
+        behavioral = entry["behavioral_score"]
+        base_initial = (
+            0.20 * semantic
+            + 0.55 * structured
+            + 0.15 * behavioral
+            + 0.10 * 0.5
+        )
+        base_new = (
+            0.20 * semantic
+            + 0.55 * structured
+            + 0.15 * behavioral
+            + 0.10 * q_score
+        )
+        if base_initial > 0:
+            entry["final_score"] = round(entry["final_score"] * (base_new / base_initial), 6)
+        else:
+            entry["final_score"] = 0.0
+            
+        if q_score >= Config.QUALITY_FILTER_THRESHOLD:
+            quality_survivors.append(entry)
+        else:
+            quality_filtered_count += 1
+            reason = "quality_filtered"
+            details = f"q_score={q_score:.4f} < threshold {Config.QUALITY_FILTER_THRESHOLD}"
+            issue_names = "QUALITY_FILTERED"
+            removed_honeypots.append({
+                "entry": entry,
+                "candidate": candidate,
+                "reason": reason,
+                "details": details,
+                "issue_names": issue_names
+            })
 
     # If fewer than 100 survive from top 300, add more from remaining
     if len(quality_survivors) < Config.TOP_N:
@@ -314,15 +405,20 @@ def main():
         for entry in remaining:
             if len(quality_survivors) >= Config.TOP_N:
                 break
-            entry["quality_score"] = 0.5  # default for non-honeypot-checked
+            entry["quality_score"] = 0.5
             quality_survivors.append(entry)
 
     removed_honeypot = len(top_300) - len([e for e in quality_survivors if e in top_300])
+    quality_filtered = removed_honeypot - hard_excluded_count - cluster_skipped_count
     logger.info(
         f"  Detailed honeypot: {len(quality_survivors)} survived from top 300 "
-        f"({hard_excluded_count} hard-excluded, {removed_honeypot - hard_excluded_count} quality-filtered), "
+        f"({hard_excluded_count} hard-excluded, {cluster_skipped_count} clustered, {quality_filtered_count} quality-filtered), "
         f"in {time.time() - t0:.1f}s"
     )
+        # --------------------------------------------------------------
+    # Save debug CSV for all removed honeypots
+    # --------------------------------------------------------------
+    build_honeypot_debug_csv(removed_honeypots)
 
     # 9.5. MMR Diversity Reranking (optional)
     quality_survivors = mmr_rerank(

@@ -4,9 +4,13 @@ Refactored to support Dynamic Calibration, chronological validation (TASK 2), fa
 and issue registry to prevent double penalization (TASK 4).
 """
 
-from typing import Optional, Dict, Any, List
+import re
+from typing import Optional, Dict, Any, List, Set
+
+from datasketch import MinHash, MinHashLSH
 
 from src.ingestion.candidate_parser import Candidate
+from src.semantic.text_builder import build_candidate_text
 from src.utils.config import Config
 from src.utils.constants import UNRELATED_SKILL_DOMAINS, CONSULTING_COMPANIES
 from src.utils.date_utils import years_since_graduation
@@ -634,4 +638,57 @@ def _earliest_graduation_year(candidate: Candidate) -> Optional[int]:
             except (ValueError, TypeError):
                 continue
     return min(years) if years else None
+    #--------------------------------------------------------------
+    # NEW: MinHash-LSH cluster detection on Top 300 (Scalable)
+    # --------------------------------------------------------------
+def detect_lsh_clusters(
+    top_300: List[Dict],
+    candidate_map: Dict[str, Candidate],
+    threshold: float = 0.8,
+    min_cluster_size: int = 3
+) -> Set[str]:
+    """
+    Detect templated honeypot clusters using MinHash + LSH on the Top 300 candidates.
+
+    Args:
+        top_300: List of scored candidate dicts (must have 'candidate_id').
+        candidate_map: Mapping from candidate_id to Candidate object.
+        threshold: Jaccard similarity threshold for LSH (0.8 recommended).
+        min_cluster_size: Minimum size of a cluster to be considered suspicious.
+
+    Returns:
+        Set of candidate_ids belonging to clusters of size >= min_cluster_size.
+    """
+    def tokenize(text: str) -> List[str]:
+        return re.findall(r'\w+', text.lower())
+
+    # Build text blobs for the top 300 (reuse existing build_candidate_text)
+    texts = {}
+    for entry in top_300:
+        cid = entry["candidate_id"]
+        cand = candidate_map.get(cid)
+        if cand:
+            texts[cid] = build_candidate_text(cand)
+
+    # Generate MinHash signatures
+    minhashes = {}
+    for cid, text in texts.items():
+        m = MinHash(num_perm=128)
+        for token in tokenize(text):
+            m.update(token.encode('utf8'))
+        minhashes[cid] = m
+
+    # Index in LSH
+    lsh = MinHashLSH(threshold=threshold, num_perm=128)
+    for cid, m in minhashes.items():
+        lsh.insert(cid, m)
+
+    # Query and collect clusters
+    cluster_ids = set()
+    for cid, m in minhashes.items():
+        result = lsh.query(m)
+        if len(result) >= min_cluster_size:
+            cluster_ids.update(result)
+
+    return cluster_ids
 

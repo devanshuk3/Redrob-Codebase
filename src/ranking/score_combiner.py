@@ -22,6 +22,7 @@ def combine_scores(
     semantic_scores: Dict[str, float],
     quality_scores: Dict[str, float],
     concept_scores: Dict[str, Dict[str, float]] = None,
+    lexical_scores: Dict[str, float] = None,
 ) -> List[Dict[str, Any]]:
     """
     Combine all score dimensions into a final ranking score.
@@ -42,13 +43,14 @@ def combine_scores(
         quality = quality_scores.get(cid, 0.5)
         structured = features.get("structured_score", 0.0)
         behavioral = features.get("behavioral_score", 0.0)
-
+        lexical = lexical_scores.get(cid, 0.0) if lexical_scores else 0.0
         # 1. Base combination based on weights
         base_score = (
             Config.WEIGHT_SEMANTIC * semantic
             + Config.WEIGHT_STRUCTURED * structured
             + Config.WEIGHT_BEHAVIORAL * behavioral
             + Config.WEIGHT_QUALITY * quality
+            + Config.WEIGHT_LEXICAL * lexical
         )
 
         # 2. Apply experience fit modifier (TASK 1 - smooth dynamic curve: inside -> 1.0, 1 yr -> 0.9, 3 yr -> 0.75, 6+ yr -> 0.5)
@@ -149,6 +151,7 @@ def combine_scores(
             "candidate_id": cid,
             "final_score": round(final_score, 6),
             "semantic_score": semantic,
+            "lexical_score": lexical,
             "structured_score": structured,
             "behavioral_score": behavioral,
             "quality_score": quality,
