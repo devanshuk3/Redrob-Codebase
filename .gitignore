@@ -43,9 +43,6 @@ Thumbs.db
 data/*
 !data/job_description.md
 
-models/*
-!models/.gitkeep
-
 Description_and_protocol/*
 !Description_and_protocol/.gitkeep
 
