@@ -37,9 +37,12 @@ subprocess.check_call([
     "requirements.txt"
 ])
 
-# Run the main application
-print("Starting application...")
+# Run the Streamlit sandbox app
+print("Starting Streamlit sandbox...")
 subprocess.check_call([
     venv_python,
-    "main.py"
+    "-m",
+    "streamlit",
+    "run",
+    "sandbox/app.py"
 ])
