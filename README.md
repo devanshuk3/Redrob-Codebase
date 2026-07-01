@@ -6,108 +6,93 @@ This system processes candidate profiles against a job description, filters out 
 
 ---
 
-## 🚀 Key Features
+## Pipeline Architecture
 
-* **Hybrid Scoring**: Combines Semantic Relevance (SentenceTransformers), Structured Features (Fuzzy Match, YOE Fit), and Behavioral Signals.
-* **Honeypot Filter**: Multi-stage detection of unrealistic skill counts and invalid timelines.
+Below is the visual overview of the different processing phases in the pipeline:
+
+![System Pipeline Phases](phases.png)
+
+---
+
+## Key Features
+
+* **Schema Validation & Streaming Loader**: Memory-efficient streaming of raw candidate profiles with real-time JSON schema validation.
+* **Hybrid Scoring Engine**: Combines Semantic Relevance (SentenceTransformers), Structured Features (Fuzzy Match, YOE Fit), and Behavioral Signals.
+* **Advanced Honeypot Detection**: 
+  - **Fast pre-filtering**: Early exclusion of non-tech roles and candidates below minimum YOE.
+  - **MinHash-LSH Clustering**: Grouping and skipping template-generated near-identical profiles.
+  - **Quality Scoring**: Multi-stage validation of unrealistic skill counts, invalid timelines, and chronological inconsistencies.
+* **Cross-Encoder Reranking**: Utilizes a cross-encoder model on the top candidate pool to evaluate joint relevance with the job description.
 * **MMR Reranking**: Optional diversity-promoting step using Maximal Marginal Relevance.
-* **Fully Local**: 100% offline inference using CPU-optimized batching.
+* **Explainable AI**: Generates automated, human-readable structured reasoning for every ranked candidate.
+* **Fully Local & CPU-Optimized**: 100% offline inference with CPU-optimized PyTorch execution for maximum resource efficiency.
 
 ---
 
-## 🛠️ Pipeline Flow
+## Setup & Execution
 
-The system runs in the following sequence:
-
+### 1. Cold Start (Recommended & Automated)
+For a completely automated setup, navigate to the project root and run:
+```bash
+python3 run.py
 ```
-[Raw Candidates] ──> [Schema Validation & Streaming Loader]
-                               │
-                               ▼
-         [Fast Pre-Filtering] (Exclude non-tech roles & low YOE)
-                               │
-                               ▼
-                 [Structured Feature Scoring]
-                               │
-                               ▼
-    [Streaming Min-Heap Selection] (Select top 5,000 structured candidates)
-                               │
-                               ▼
-             [Semantic Scoring] (SentenceTransformers)
-                               │
-                               ▼
-                     [Weighted Score Fusion]
-                               │
-                               ▼
-    [Detailed Honeypot Filtering] (Evaluated on top 300 candidates)
-                               │
-                               ▼
-     [MMR Diversity Reranking] (Optional - top 150 reranked to 100)
-                               │
-                               ▼
-                 [Ranker, Tie-Breaker & Reasoning]
-                               │
-                               ▼
-                   [Outputs / Submission CSV]
-```
+This script will automatically:
+1. Recreate/initialize a virtual environment (`venv`).
+2. Upgrade `pip`.
+3. Install all CPU-only packages (preventing large GPU/CUDA package downloads).
+4. Run the Streamlit sandbox dashboard.
 
 ---
 
-## ⚙️ MMR Diversity Reranking
-
-A lightweight Maximal Marginal Relevance (MMR) step is inserted immediately before the final top-100 selection to balance score relevance and profile diversity.
-
-### Configuration
-
-You can enable or customize MMR in `src/ranking/mmr_reranker.py`:
-
-```python
-ENABLE_MMR = False   # Set to True to enable MMR. When False, output matches original system.
-MMR_LAMBDA = 0.85    # Trade-off parameter (higher = relevance, lower = diversity)
-MMR_POOL_SIZE = 150  # Candidates pulled from the top of the scored pool
-MMR_SELECT_N = 100   # Number of final candidates to select
-```
-
----
-
-## 💻 Setup & Execution
-
-### 1. Prerequisites
-* **Python**: `3.10` or higher
-* **RAM**: 8 GB minimum (16 GB recommended)
-
-### 2. Installation
-Navigate to the root directory and install dependencies:
+### 2. Manual Setup (Alternative)
+If you prefer setting up the environment manually:
 
 ```bash
-# 1. Set up virtual environment
+# Set up virtual environment
 python3 -m venv venv
 source venv/bin/activate
 
-# 2. Upgrade pip and install requirements
+# Upgrade pip & install requirements
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 3. Run the Pipeline
+---
+
+### 3. Running the Pipeline via CLI
 Ensure input files are placed in `data/candidates.jsonl` and `data/job_description.md`, then run:
 
 ```bash
-# Run on the full dataset
-python main.py
+# Run the pipeline on the full dataset
+python3 main.py
 
-# Run on a smaller subset (e.g. 5000 candidates) for testing
-python main.py --limit 5000
+# Run on a smaller subset (e.g. 5,000 candidates) for rapid testing
+python3 main.py --limit 5000
 
 # Specify custom inputs/outputs
-python main.py --jd data/job_description.md --output outputs/submission.csv
+python3 main.py --jd data/job_description.md --output outputs/submission.csv
 ```
 
-### 4. Run Verification & Tests
+---
 
+### 4. Running the Sandbox App
+To start the Streamlit web dashboard manually:
 ```bash
-# Validate the submission output format
-python "../Descriptions and protocol/validate_submission.py" outputs/submission.csv
+streamlit run sandbox/app.py
+```
 
-# Run the test suite
+---
+
+### 5. Running Tests
+To run the test suite:
+```bash
 pytest -v
 ```
+
+---
+
+##  Output Artifacts
+All generated files will be written to the `outputs/` directory:
+* **`outputs/submission.csv`**: The final Top 100 ranked candidates with IDs and structured reasoning (matching submission schema).
+* **`outputs/debug/candidate_scores.csv`**: Comprehensive breakdown of scores (semantic, structured, quality, lexical, etc.) for all candidates.
+* **`outputs/debug/removed_honeypots.csv`**: Detailed reasons/issues for profiles flagged and removed by the honeypot detection filters.
