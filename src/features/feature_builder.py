@@ -31,7 +31,7 @@ from src.features.production_scorer import score_production
 from src.ingestion.honeypot_filter import compute_trap_probability, _compute_consistency_score as compute_consistency_score
 from src.utils.config import Config
 from src.utils.constants import LLM_HYPE_KEYWORDS
-from src.utils.text_utils import count_keyword_matches
+from src.utils.text_utils import count_keyword_matches, canonicalize_skill
 
 # Pre-compute total structured weight once at module load (sum of 8 Config constants)
 _TOTAL_WEIGHT = (
@@ -88,12 +88,12 @@ def _compute_llm_hype_penalty(
         return 0.0
 
     hype_hits = count_keyword_matches(combined_text, LLM_HYPE_KEYWORDS)
-    if hype_hits <= 2:
+    if hype_hits <= 1:
         return 0.0  # minimal hype mention is fine
 
     # Weak depth defined by low domain sub-scores
     domain_depth = retrieval + ranking + evaluation + production
-    if domain_depth >= 1.2:
+    if domain_depth >= 1.0:
         return 0.0  # they have real depth — no penalty
 
     # Graduated penalty: less domain depth -> higher penalty
@@ -172,6 +172,26 @@ def build_structured_features(
     evaluation = 0.70 * evaluation + 0.30 * career_keyword_scores.get("evaluation", 0.0)
     production = 0.70 * production + 0.30 * career_keyword_scores.get("production", 0.0)
 
+    # Retrieval signal tightening: dampen weak retrieval (LangChain/RAG-only profiles)
+    # Only true retrieval infrastructure tools bypass the dampener.
+    # Moderate signals (semantic search, vector search, embeddings) do NOT bypass.
+    _STRONG_RETRIEVAL_SKILLS = {
+        "faiss", "pinecone", "milvus", "elasticsearch", "opensearch",
+        "weaviate", "qdrant", "solr", "lucene", "information retrieval",
+    }
+    _has_strong_retrieval = any(
+        any(sr in canonicalize_skill(s.name) for sr in _STRONG_RETRIEVAL_SKILLS)
+        for s in candidate.skills if s.name
+    )
+    if retrieval > 0.0 and retrieval < 0.55 and not _has_strong_retrieval:
+        retrieval *= 0.25  # dampen weak retrieval signal aggressively
+
+    # Production-retrieval coupling: production amplifies retrieval, not replaces it
+    if retrieval < 0.20:
+        production *= 0.35
+    elif retrieval < 0.40:
+        production *= 0.55
+
     # Skill Assessment Modifier & Score (TASK 7)
     scores = candidate.redrob_signals.skill_assessment_scores or {}
     if not scores:
@@ -179,7 +199,6 @@ def build_structured_features(
         assessment_modifier = 1.0
     else:
         # Find scores matching must-have or preferred skills from JD
-        from src.utils.text_utils import canonicalize_skill
         jd_skills = {canonicalize_skill(s) for s in jd_features.all_skills()}
         relevant_scores = []
         for skill_name, val in scores.items():

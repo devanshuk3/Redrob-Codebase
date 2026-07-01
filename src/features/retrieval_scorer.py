@@ -64,32 +64,32 @@ def score_retrieval(
     if total_matches == 0:
         return 0.0
 
-    # Base score on total matches
+    # Base score on total matches (tightened: weak signals produce lower scores)
     if total_matches >= 10:
         score = 1.0
     elif total_matches >= 8:
         score = 0.92
     elif total_matches >= 6:
-        score = 0.82
+        score = 0.80
     elif total_matches >= 5:
-        score = 0.72
+        score = 0.68
     elif total_matches >= 4:
-        score = 0.62
+        score = 0.55
     elif total_matches >= 3:
-        score = 0.50
+        score = 0.35
     elif total_matches >= 2:
-        score = 0.38
-    else:
         score = 0.22
+    else:
+        score = 0.12
 
-    # Bonus for retrieval-related skill names (stronger bonus)
+    # Bonus for retrieval-related skill names
     skill_bonus = 0.0
     for s in candidate.skills:
         canon = canonicalize_skill(s.name)
         if any(kw in canon for kw in RETRIEVAL_SKILL_KEYWORDS):
-            skill_bonus += 0.08
+            skill_bonus += 0.06
 
-    score = min(1.0, score + min(0.25, skill_bonus))
+    score = min(1.0, score + min(0.20, skill_bonus))
 
     # TASK 6 Rule: career evidence matters more.
     # If 0 matches in career history, penalize heavily (only skills/summary mention it)
