@@ -39,7 +39,7 @@ python3 run.py
 This script will automatically:
 1. Recreate/initialize a virtual environment (`venv`).
 2. Upgrade `pip`.
-3. Install all CPU-only packages (preventing large GPU/CUDA package downloads).
+3. Install all packages or dependencies.
 4. Run the Streamlit sandbox dashboard.
 
 ---
