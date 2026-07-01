@@ -1,0 +1,82 @@
+# Redrob Hackathon — Submission Metadata Template
+#
+# Copy this file to your repo root as `submission_metadata.yaml` and fill it in.
+# The fields here should match what you submit via the portal at upload time.
+# Stage 3 review uses this file to verify your portal metadata.
+
+# ============================================================================
+# Team identity
+# ============================================================================
+team_name: "Nexus4"  # Used in leaderboard and announcements
+
+primary_contact:
+  name: "Vanshika Singh Chauhan"
+  email: "chauhanvanshika277@gmail.com"   # Used for all organizer communication
+  phone: "+91 9460865712"        # Used for top-50 / top-10 outreach
+
+team_members:
+  - name: "Vanshika Singh Chauhan"
+    email: "chauhanvanshika277@gmail.com"
+    role: "Team Lead and Project Coordinator"          
+  - name: "Shristi Patel"
+    email: "shristipatel185@gmail.com"
+    role: "ML Engineer and Ranking Systems"
+  - name: "Devanshu Kumar"
+    email: "kdevanshu193@gmail.com"
+    role: "Data Engineer"
+  - name: "Kshitij Mathur"
+    email: "mathur.kshitij08@gmail.com"
+    role: "Data Engineering and Evaluation"
+
+
+github_repo: "https://github.com/devanshuk3/Redrob-Codebase"
+sandbox_link: "https://nexus4.streamlit.app/"
+reproduce_command: "python run.py"
+
+compute:
+  platform: "ASUS TUF Gaming F15 FX506HF"                    # Or: "AWS EC2 c5.4xlarge", "Local Linux box", etc.
+  cpu_cores: 6                                  # Number of CPU cores used
+  ram_gb: 16                                    # Available RAM in GB
+  python_version: "3.12.3"                      # python --version
+  os: "Zorin OS 18.1"                              # Or "Ubuntu 22.04 LTS", etc.
+  uses_gpu_for_inference: false                 # Must be false — see compute constraints
+  has_network_during_ranking: false             # Must be false — no API calls during ranking
+  pre_computation_required: true               # true if you pre-compute embeddings or train models offline
+  pre_computation_time_minutes: 2.7               # Approximate, if applicable
+
+# ============================================================================
+# AI tools declaration
+# ============================================================================
+# Transparency only — declared use is NOT penalized. Be honest. Stage 5 interview
+# may verify these declarations against your code; declarations that contradict
+# your code or your interview are flagged.
+ai_tools_used:
+  - "Claude Opus 4.6"        # e.g. for architecture discussion, code review
+
+ai_usage_summary: |
+  -"Used Claude for researching topics and to develop an mvp."
+  -"Used Claude and Chatgpt for verification of the output csv generated."
+  -"Used Gemini 3.5 flash to create a structured codebase around our plan of execution to 
+    give us a good starting point."
+# ============================================================================
+# Approach summary (optional but recommended)
+# ============================================================================
+methodology_summary: |
+Hybrid candidate ranking pipeline combining rule-based scoring and semantic retrieval under CPU-only constraints. The system performs streaming validation, pre-filtering, and structured scoring across skills, experience, domain expertise, education, production exposure, and behavioral signals. A heap-based top-K approach retains only strong candidates for expensive processing.
+
+Semantic ranking uses sentence embeddings, TF-IDF matching, and domain-specific concept similarity to capture both contextual relevance and exact skill alignment. Scores are combined using weighted aggregation with experience, availability, and location adjustments.
+
+The final candidate pool undergoes cross-encoder reranking, profile consistency checks, duplicate detection, and honeypot filtering to eliminate suspicious or low-quality profiles. Candidate explanations are generated deterministically from verified profile data to ensure transparency.
+
+The pipeline runs entirely offline on CPU with embedding caching and staged retrieval, enabling efficient processing of 100K candidates while satisfying runtime, reproducibility, and explainability requirements. 
+
+
+# ============================================================================
+# Declarations
+# ============================================================================
+declarations:
+  read_submission_spec: true        # I have read submission_spec.md in full
+  code_is_original_work: true       # My code is my team's original work (using AI as a tool is fine)
+  no_collusion: true                # I have not coordinated my submission with other teams
+  honeypot_check_done: true        # OPTIONAL — set true if you explicitly checked for honeypots in your ranking
+  reproduction_tested: true         # I have tested that my reproduce_command runs end-to-end
