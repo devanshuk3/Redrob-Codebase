@@ -57,11 +57,10 @@ st.caption(
 with st.expander("Things to know about this pipeline before you run it", expanded=False):
     st.markdown(
         """
-- **`build_submission()` hard-requires exactly 100 output rows.** If fewer
-  than 100 candidates survive pre-filtering and quality checks, the
-  pipeline raises a `ValueError` instead of returning a partial ranking.
-  Ensure **at least 100** candidates (ideally a good amount more, since
-  pre-filtering removes some) to see a successful run here.
+- **`build_submission()` dynamically adapts to candidate count.** If the input
+  has fewer than 100 candidates, the pipeline will output exactly the number
+  of candidates in the input. If the input has 100 or more candidates, it will
+  output the top 100.
 - **First run needs internet access.** `models/all-MiniLM-L6-v2/` isn't
   checked into the repo, so on a fresh machine (including a fresh Streamlit
   Cloud deploy) the pipeline downloads that model from Hugging Face on
@@ -135,10 +134,9 @@ if run:
     with open(CANDIDATES_PATH, "r", encoding="utf-8") as f:
         n_lines = sum(1 for line in f if line.strip())
     if n_lines < 100:
-        st.warning(
-            f"Candidates file has {n_lines} records. The pipeline requires "
-            f"exactly 100 output rows after filtering — with fewer than 100 "
-            f"input candidates this will very likely raise a ValueError below."
+        st.info(
+            f"Candidates file has {n_lines} records. The pipeline will adapt and "
+            f"output {n_lines} rows."
         )
 
     # Validate JD

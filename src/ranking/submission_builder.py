@@ -48,7 +48,7 @@ def build_submission(
             "reasoning": entry.get("reasoning", ""),
         })
 
-    df = pd.DataFrame(rows)
+    df = pd.DataFrame(rows, columns=["candidate_id", "rank", "score", "reasoning"])
 
     # Validation
     errors = validate_submission(df)
@@ -123,7 +123,8 @@ def save_full_scores(
     """Save all candidate scores (not just top 100) for analysis."""
     output_path = output_path or Config.CANDIDATE_SCORES_FILE
     df = pd.DataFrame(all_scored)
-    df = df.sort_values("final_score", ascending=False)
+    if not df.empty:
+        df = df.sort_values("final_score", ascending=False)
     df.to_csv(output_path, index=False, encoding="utf-8")
     logger.info(f"Full scores saved: {output_path} ({len(df)} rows)")
 

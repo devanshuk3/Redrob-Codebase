@@ -28,6 +28,10 @@ def compute_semantic_scores(
     Returns:
         Dictionary mapping candidate_id → semantic_score [0, 1].
     """
+    if not candidate_ids:
+        logger.info("No candidates provided for semantic scores.")
+        return {}
+
     if jd_embedding.ndim == 1:
         jd_embedding = jd_embedding.reshape(1, -1)
 
@@ -67,6 +71,10 @@ def compute_concept_scores(
         {candidate_id: {concept_name: score}} for each concept.
         Scores are raw cosine similarities, clipped to [0, 1].
     """
+    if not candidate_ids:
+        logger.info("No candidates provided for concept scores.")
+        return {}
+
     result = {}
 
     for cid in candidate_ids:

@@ -139,6 +139,26 @@ def main():
 
     filepath = Config.CANDIDATES_FILE
 
+    # Count total candidates in the input candidates file to determine if we have less than 100
+    total_candidates = 0
+    if os.path.exists(filepath):
+        with open(filepath, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    total_candidates += 1
+    effective_candidates = total_candidates
+    if args.limit is not None:
+        effective_candidates = min(total_candidates, args.limit)
+
+    # Dynamic TOP_N adjustment if candidate file is less than 100
+    if effective_candidates < 100:
+        Config.TOP_N = effective_candidates
+        logger.info(f"Input has less than 100 candidates ({effective_candidates}). Updating Config.TOP_N to {Config.TOP_N}.")
+    else:
+        Config.TOP_N = 100
+
+    prefiltered_records = []
+
     for idx, record in enumerate(stream_jsonl(filepath)):
         if args.limit is not None and idx >= args.limit:
             break
@@ -149,8 +169,9 @@ def main():
             continue
 
         # Cheap pre-filter on raw dict BEFORE parsing
-        if not fast_prefilter_raw(record, min_yoe=min_yoe):
+        if effective_candidates >= 100 and not fast_prefilter_raw(record, min_yoe=min_yoe):
             prefilter_removed += 1
+            prefiltered_records.append((idx, record))
             continue
 
         candidate = parse_candidate(record)
@@ -166,6 +187,17 @@ def main():
                 heapq.heappushpop(heap, (structured_score, -idx, candidate.candidate_id, candidate, features))
 
         processed_count += 1
+
+    # Fallback: if we have fewer than Config.TOP_N candidates processed, pull from prefiltered_records
+    if len(heap) < Config.TOP_N and prefiltered_records:
+        for idx, record in prefiltered_records:
+            if len(heap) >= Config.TOP_N:
+                break
+            candidate = parse_candidate(record)
+            features = build_structured_features(candidate, jd_features)
+            structured_score = features["structured_score"]
+            heapq.heappush(heap, (structured_score, -idx, candidate.candidate_id, candidate, features))
+            processed_count += 1
 
     # Reconstruct top_k_candidates and candidate_features preserving the original file order
     # Sort the heap by original file index (idx) to preserve order
@@ -264,20 +296,22 @@ def main():
     logger.info("  Computing lexical (TF-IDF) scores for hybrid retrieval...")
     t_lex = time.time()
     
-    # Prepare texts (already built earlier in the pipeline)
-    # jd_text and candidate_texts are already defined above
-    all_texts = [jd_text] + candidate_texts
-    vectorizer = TfidfVectorizer(stop_words='english', sublinear_tf=True, max_features=5000)
-    tfidf_matrix = vectorizer.fit_transform(all_texts)
-    jd_vec = tfidf_matrix[0:1]
-    candidate_vecs = tfidf_matrix[1:]
-    
-    lexical_similarities = cosine_similarity(jd_vec, candidate_vecs).flatten()
-    lexical_scores = np.clip(lexical_similarities, 0.0, 1.0)
-    
-    lexical_scores_dict = {
-        cid: float(score) for cid, score in zip(candidate_ids_list, lexical_scores)
-    }
+    lexical_scores_dict = {}
+    if candidate_texts:
+        # Prepare texts (already built earlier in the pipeline)
+        # jd_text and candidate_texts are already defined above
+        all_texts = [jd_text] + candidate_texts
+        vectorizer = TfidfVectorizer(stop_words='english', sublinear_tf=True, max_features=5000)
+        tfidf_matrix = vectorizer.fit_transform(all_texts)
+        jd_vec = tfidf_matrix[0:1]
+        candidate_vecs = tfidf_matrix[1:]
+        
+        lexical_similarities = cosine_similarity(jd_vec, candidate_vecs).flatten()
+        lexical_scores = np.clip(lexical_similarities, 0.0, 1.0)
+        
+        lexical_scores_dict = {
+            cid: float(score) for cid, score in zip(candidate_ids_list, lexical_scores)
+        }
     
     logger.info(f"  Lexical scoring complete in {time.time() - t_lex:.1f}s")
 
@@ -364,6 +398,36 @@ def main():
         details = ""
         issue_names = ""
 
+        # If effective_candidates < 100, we do not filter out anyone
+        if effective_candidates < 100:
+            q_score = compute_quality_score(candidate) if candidate else 0.5
+            if candidate:
+                candidate.quality_score = q_score
+            entry["quality_score"] = q_score
+            
+            semantic = entry["semantic_score"]
+            structured = entry["structured_score"]
+            behavioral = entry["behavioral_score"]
+            base_initial = (
+                0.20 * semantic
+                + 0.55 * structured
+                + 0.15 * behavioral
+                + 0.10 * 0.5
+            )
+            base_new = (
+                0.20 * semantic
+                + 0.55 * structured
+                + 0.15 * behavioral
+                + 0.10 * q_score
+            )
+            if base_initial > 0:
+                entry["final_score"] = round(entry["final_score"] * (base_new / base_initial), 6)
+            else:
+                entry["final_score"] = 0.0
+            
+            quality_survivors.append(entry)
+            continue
+
         # --- Check 1: Cluster detection ---
         if cid in cluster_honeypot_ids:
             cluster_skipped_count += 1
@@ -439,7 +503,7 @@ def main():
                 "issue_names": issue_names
             })
 
-    # If fewer than 100 survive from top 300, add more from remaining
+    # If fewer than Config.TOP_N survive from top 300, add more from remaining
     if len(quality_survivors) < Config.TOP_N:
         remaining = scored_candidates[300:]
         for entry in remaining:
@@ -447,6 +511,19 @@ def main():
                 break
             entry["quality_score"] = 0.5
             quality_survivors.append(entry)
+
+    # If still fewer than Config.TOP_N survive, add back from removed_honeypots
+    if len(quality_survivors) < Config.TOP_N and removed_honeypots:
+        for item in removed_honeypots:
+            if len(quality_survivors) >= Config.TOP_N:
+                break
+            entry = item["entry"]
+            quality_survivors.append(entry)
+
+    # Dynamic TOP_N adjustment if fewer than Config.TOP_N survive
+    if len(quality_survivors) < Config.TOP_N:
+        logger.info(f"Fewer than {Config.TOP_N} candidates survived filtering. Updating Config.TOP_N to {len(quality_survivors)}.")
+        Config.TOP_N = len(quality_survivors)
 
     removed_honeypot = len(top_300) - len([e for e in quality_survivors if e in top_300])
     quality_filtered = removed_honeypot - hard_excluded_count - cluster_skipped_count
@@ -489,10 +566,11 @@ def main():
     logger.info("=" * 70)
     logger.info(f"Pipeline complete in {elapsed:.1f}s")
     logger.info(f"Submission: {args.output}")
-    logger.info(f"Top candidate: {ranked[0]['candidate_id']} "
-                f"(score: {ranked[0]['final_score']:.4f})")
-    logger.info(f"100th candidate: {ranked[-1]['candidate_id']} "
-                f"(score: {ranked[-1]['final_score']:.4f})")
+    if ranked:
+        logger.info(f"Top candidate: {ranked[0]['candidate_id']} "
+                    f"(score: {ranked[0]['final_score']:.4f})")
+        logger.info(f"Last ({len(ranked)}th) candidate: {ranked[-1]['candidate_id']} "
+                    f"(score: {ranked[-1]['final_score']:.4f})")
     logger.info("=" * 70)
 
     return df

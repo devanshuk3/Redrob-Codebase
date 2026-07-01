@@ -45,9 +45,12 @@ def rank_candidates(
     assert len(set(ids)) == len(ids), "Duplicate candidate IDs in top N"
     assert len(set(ranks)) == len(ranks), "Duplicate ranks in top N"
 
-    logger.info(
-        f"Ranked top {len(top)} candidates "
-        f"(score range: {top[0]['final_score']:.4f} – {top[-1]['final_score']:.4f})"
-    )
+    if top:
+        logger.info(
+            f"Ranked top {len(top)} candidates "
+            f"(score range: {top[0]['final_score']:.4f} – {top[-1]['final_score']:.4f})"
+        )
+    else:
+        logger.info("Ranked top 0 candidates (empty)")
 
     return top

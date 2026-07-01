@@ -93,6 +93,30 @@ class TestSubmissionValidator:
                  "reasoning": "x"} for i in range(1, 51)]
         assert len(validate_submission(pd.DataFrame(rows))) > 0
 
+    def test_dynamic_row_count(self):
+        from src.utils.config import Config
+        original_top_n = Config.TOP_N
+        try:
+            Config.TOP_N = 10
+            rows = [{"candidate_id": f"C_{i}", "rank": i, "score": 1.0 - i * 0.01,
+                     "reasoning": f"Reason {i}"} for i in range(1, 11)]
+            df = pd.DataFrame(rows)
+            errors = validate_submission(df)
+            assert len(errors) == 0
+        finally:
+            Config.TOP_N = original_top_n
+
+    def test_empty_row_count(self):
+        from src.utils.config import Config
+        original_top_n = Config.TOP_N
+        try:
+            Config.TOP_N = 0
+            df = pd.DataFrame(columns=["candidate_id", "rank", "score", "reasoning"])
+            errors = validate_submission(df)
+            assert len(errors) == 0
+        finally:
+            Config.TOP_N = original_top_n
+
     def test_duplicate_ids(self):
         rows = [{"candidate_id": "C_1", "rank": i, "score": 1.0,
                  "reasoning": "x"} for i in range(1, 101)]
