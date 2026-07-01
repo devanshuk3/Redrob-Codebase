@@ -62,15 +62,15 @@ class Config:
     STRUCT_WEIGHT_SKILL = 0.20         # JD skill matching
     STRUCT_WEIGHT_RETRIEVAL = 0.20     # retrieval/search domain
     STRUCT_WEIGHT_RANKING = 0.15       # ranking/recommendation domain
-    STRUCT_WEIGHT_EVALUATION = 0.15    # evaluation framework experience (JD explicitly requires NDCG/MRR)
-    STRUCT_WEIGHT_PRODUCTION = 0.10    # production deployment experience (amplifies, not replaces retrieval)
+    STRUCT_WEIGHT_EVALUATION = 0.10    # evaluation framework experience
+    STRUCT_WEIGHT_PRODUCTION = 0.15    # production deployment experience
     STRUCT_WEIGHT_EXPERIENCE = 0.10    # years + role relevance
     STRUCT_WEIGHT_EDUCATION = 0.05     # education (de-prioritized)
     STRUCT_WEIGHT_CERTIFICATION = 0.05 # certifications (de-prioritized)
 
     # Pre-filter Thresholds (CHANGE 5)
     QUALITY_FILTER_THRESHOLD = 0.20       # drop candidates below this quality
-    STRUCTURED_TOP_K = 7000               # top-K after structured scoring → semantic
+    STRUCTURED_TOP_K = 5000               # top-K after structured scoring → semantic
 
     # Honeypot Thresholds (CHANGE 6)
     MAX_SKILLS_REASONABLE = 60
@@ -89,7 +89,7 @@ class Config:
     FUZZY_MATCH_THRESHOLD = 80
 
     # LLM Hype Penalty (TASK 3)
-    LLM_HYPE_PENALTY_MAX = 0.22           # maximum penalty for hype-heavy profiles
+    LLM_HYPE_PENALTY_MAX = 0.12           # maximum penalty for hype-heavy profiles
 
     # Notice Period Penalty (TASK 9)
     NOTICE_PERIOD_PENALTY_MAX = 0.05      # max deduction for long notice

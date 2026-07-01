@@ -63,35 +63,6 @@ def combine_scores(
         trap_penalty = 1.0 - 0.20 * trap_prob
         final_score = final_score * trap_penalty
 
-        # Technical gate: retrieval_score is the non-negotiable minimum
-        # No amount of skill/production score compensates for zero retrieval depth
-        _retrieval_raw  = features.get("retrieval_score", 0.0)
-        _ranking_raw    = features.get("ranking_score", 0.0)
-        _evaluation_raw = features.get("evaluation_score", 0.0)
-        _skill_raw      = features.get("skill_score", 0.0)
-        core_technical = (
-            _retrieval_raw * 0.40
-            + _ranking_raw * 0.30
-            + _evaluation_raw * 0.20
-            + _skill_raw * 0.10
-        )
-        if _retrieval_raw < 0.20:
-            final_score *= 0.20
-        elif _retrieval_raw < 0.30:
-            final_score *= 0.40
-        elif core_technical < 0.15:
-            final_score *= 0.35
-        elif core_technical < 0.25:
-            final_score *= 0.65
-
-        # Evaluation boost: reward genuine evaluation experience (NDCG/MRR/A-B testing)
-        if _evaluation_raw >= 0.40:
-            final_score *= 1.20
-        elif _evaluation_raw >= 0.20:
-            final_score *= 1.12
-        elif _evaluation_raw >= 0.10:
-            final_score *= 1.05
-
         # 4. Apply positive technical rewards (TASK 6 - shift to 70% reward, 30% penalty philosophy)
         retrieval = features.get("retrieval_score", 0.0)
         ranking = features.get("ranking_score", 0.0)
@@ -158,13 +129,7 @@ def combine_scores(
             
         if days_inactive > 150 and resp_rate < 0.15:
             availability_mult *= 0.80
-
-        notice_days = features.get("notice_period_days", 0)
-        if notice_days > 90:
-            availability_mult *= 0.75
-        elif notice_days > 60:
-            availability_mult *= 0.88
-
+            
         location_mult = 1.0
         country = (features.get("country") or "").strip().lower()
         willing_to_relocate = features.get("willing_to_relocate", True)
@@ -180,19 +145,7 @@ def combine_scores(
             if not is_preferred_city and not willing_to_relocate:
                 location_mult = 0.50
                 
-        # Consulting penalty: penalize consulting-heavy careers (TCS/Infosys/Wipro/etc.)
-        consulting_ratio = features.get("consulting_ratio", 0.0)
-        consulting_mult = 1.0
-        if consulting_ratio >= 1.0:
-            consulting_mult = 0.40
-        elif consulting_ratio >= 0.75:
-            consulting_mult = 0.50
-        elif consulting_ratio >= 0.50:
-            consulting_mult = 0.60
-        elif consulting_ratio >= 0.25:
-            consulting_mult = 0.80
-
-        final_score = final_score * domain_boost * scale_boost * behavioral_boost * availability_mult * location_mult * consulting_mult
+        final_score = final_score * domain_boost * scale_boost * behavioral_boost * availability_mult * location_mult
 
         entry = {
             "candidate_id": cid,

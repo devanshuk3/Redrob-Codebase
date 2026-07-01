@@ -253,16 +253,6 @@ def _build_reasoning(
                 "ranking, and A/B testing infrastructure that the JD explicitly values. "
                 "Ranked highly based on strong production & system design signals, not keyword matching."
             )
-        elif rank is not None and rank <= 20:
-            prod_score_local = scores.get("production_score", 0.0)
-            retrieval_local = scores.get("retrieval_score", 0.0)
-            strongest_signal = "production engineering" if prod_score_local >= retrieval_local else "retrieval-adjacent signals"
-            tech_sentence = (
-                f"Broader ML/engineering profile ({yoe:.0f} YOE) without exact JD keyword overlap, "
-                f"but ranked on the strength of {strongest_signal} "
-                f"(production={prod_score_local:.2f}, retrieval={retrieval_local:.2f}). "
-                "Requires validation of retrieval/ranking depth in screening."
-            )
         else:
             tech_sentence = (
                 f"Adjacent ML/engineering background ({yoe:.0f} YOE) without transferable "
