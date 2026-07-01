@@ -37,7 +37,7 @@ For a completely automated setup, navigate to the project root and run:
 python3 run.py
 ```
 This script will automatically:
-1. Recreate/initialize a virtual environment (`venv`).
+1. Create a virtual environment (`venv`) if it doesn't already exist.
 2. Upgrade `pip`.
 3. Install all packages or dependencies.
 4. Run the Streamlit sandbox dashboard.
@@ -94,5 +94,5 @@ pytest -v
 ##  Output Artifacts
 All generated files will be written to the `outputs/` directory:
 * **`outputs/submission.csv`**: The final Top 100 ranked candidates with IDs and structured reasoning (matching submission schema).
-* **`outputs/debug/candidate_scores.csv`**: Comprehensive breakdown of scores (semantic, structured, quality, lexical, etc.) for all candidates.
-* **`outputs/debug/removed_honeypots.csv`**: Detailed reasons/issues for profiles flagged and removed by the honeypot detection filters.
+* **`outputs/candidate_scores.csv`**: Comprehensive breakdown of scores (semantic, structured, quality, lexical, etc.) for all candidates.
+* **`outputs/debug/honeypots_detailed.csv`**: Detailed reasons/issues for profiles flagged and removed by the honeypot detection filters.
