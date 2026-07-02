@@ -55,7 +55,7 @@ ai_tools_used:
   - "ChatGPT"
   - "Gemini 3.5 Flash"
 
-ai_usage_summary: |
+ai_usage_summary:
   -"Used Claude for researching topics and to develop an mvp."
   -"Used Claude and Chatgpt for verification of the output csv generated."
   -"Used Gemini 3.5 flash to create a structured codebase around our plan of execution to 
@@ -63,14 +63,14 @@ ai_usage_summary: |
 # ============================================================================
 # Approach summary (optional but recommended)
 # ============================================================================
-methodology_summary: |
-Hybrid candidate ranking pipeline combining rule-based scoring and semantic retrieval under CPU-only constraints. The system performs streaming validation, pre-filtering, and structured scoring across skills, experience, domain expertise, education, certifications, production exposure, and behavioral signals. A heap-based top-K approach retains only strong candidates for expensive processing.
-
-Semantic ranking uses sentence embeddings, TF-IDF matching, and domain-specific concept similarity to capture both contextual relevance and exact skill alignment. Scores are combined using weighted aggregation with experience, availability, and location adjustments.
-
-The final candidate pool undergoes cross-encoder reranking, profile consistency checks, duplicate detection, and honeypot filtering to eliminate suspicious or low-quality profiles, followed by an optional MMR-based diversity rerank (disabled by default) before final selection. Candidate explanations are generated deterministically from verified profile data to ensure transparency.
-
-The pipeline runs entirely offline on CPU with embedding caching and staged retrieval, enabling efficient processing of 100K candidates while satisfying runtime, reproducibility, and explainability requirements. 
+methodology_summary: 
+  Hybrid candidate ranking pipeline combining rule-based scoring and semantic retrieval under CPU-only constraints. The system performs streaming validation, pre-filtering, and structured scoring across skills, experience, domain expertise, education, certifications, production exposure, and behavioral signals. A heap-based top-K approach retains only strong candidates for expensive processing.
+  
+  Semantic ranking uses sentence embeddings, TF-IDF matching, and domain-specific concept similarity to capture both contextual relevance and exact skill alignment. Scores are combined using weighted aggregation with experience, availability, and location adjustments.
+  
+  The final candidate pool undergoes cross-encoder reranking, profile consistency checks, duplicate detection, and honeypot filtering to eliminate suspicious or low-quality profiles, followed by an optional MMR-based diversity rerank (disabled by default) before final selection. Candidate explanations are generated deterministically from verified profile data to ensure transparency.
+  
+  The pipeline runs entirely offline on CPU with embedding caching and staged retrieval, enabling efficient processing of 100K candidates while satisfying runtime, reproducibility, and explainability requirements. 
 
 
 # ============================================================================
