@@ -16,7 +16,7 @@ Pipeline flow (MERGED — notebook improvements integrated):
   11. Submission CSV output + validation
 
 Usage:
-    python main.py
+    python rank.py --candidates ./candidates.jsonl --out ./submission.csv
 """
 # Virtualenv bootstrap — create venv, install deps, re-exec if needed
 
@@ -124,10 +124,21 @@ def fast_prefilter(candidate: Candidate, min_yoe: float = 3.0) -> bool:
 def main():
     """Execute the full ranking pipeline."""
     parser = argparse.ArgumentParser(description="RedRob Candidate Ranking Pipeline")
+    parser.add_argument("--candidates", type=str, default="./candidates.jsonl", help="Path to candidates JSONL file")
+    parser.add_argument("--out", type=str, default="./submission.csv", help="Path to output CSV")
     parser.add_argument("--limit", type=int, default=None, help="Limit number of candidates loaded")
-    parser.add_argument("--jd", type=str, default=Config.JD_FILE, help="Path to job description file")
-    parser.add_argument("--output", type=str, default=Config.SUBMISSION_FILE, help="Path to output CSV")
+    parser.add_argument("--jd", type=str, default="./job_description.md", help="Path to job description file")
     args = parser.parse_args()
+
+    # Derive output directory from --out so all secondary artifacts land
+    # alongside the submission file (works from any CWD).
+    out_dir = os.path.dirname(os.path.abspath(args.out)) or os.getcwd()
+    Config.OUTPUTS_DIR = out_dir
+    Config.SUBMISSION_FILE = os.path.abspath(args.out)
+    Config.CANDIDATE_SCORES_FILE = os.path.join(out_dir, "candidate_scores.csv")
+    Config.DEBUG_DIR = os.path.join(out_dir, "debug")
+    Config.DEBUG_FILE = os.path.join(Config.DEBUG_DIR, "candidate_debug.csv")
+    Config.LOGS_DIR = os.path.join(out_dir, "logs")
 
     pipeline_start = time.time()
 
@@ -169,7 +180,7 @@ def main():
     prefilter_removed = 0
     processed_count = 0
 
-    filepath = Config.CANDIDATES_FILE
+    filepath = args.candidates
 
     # Count total candidates in the input candidates file to determine if we have less than 100
     total_candidates = 0
@@ -585,7 +596,7 @@ def main():
 
     # 12. Build & Validate Submission
     logger.info("Phase 11: Building submission CSV...")
-    df = build_submission(ranked, output_path=args.output)
+    df = build_submission(ranked, output_path=args.out)
 
     # Generate debug CSV with original details
     build_debug_csv(ranked, candidate_map)
@@ -597,7 +608,7 @@ def main():
     elapsed = time.time() - pipeline_start
     logger.info("=" * 70)
     logger.info(f"Pipeline complete in {elapsed:.1f}s")
-    logger.info(f"Submission: {args.output}")
+    logger.info(f"Submission: {args.out}")
     if ranked:
         logger.info(f"Top candidate: {ranked[0]['candidate_id']} "
                     f"(score: {ranked[0]['final_score']:.4f})")

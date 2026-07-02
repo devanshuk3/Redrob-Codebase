@@ -49,3 +49,7 @@ Description_and_protocol/*
 notebooks/*
 !notebooks/.gitkeep
 
+# Root level data and output files
+candidates.jsonl
+
+

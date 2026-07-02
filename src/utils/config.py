@@ -21,9 +21,9 @@ class Config:
     OUTPUTS_DIR = os.path.join(BASE_DIR, "outputs")
     LOGS_DIR = os.path.join(OUTPUTS_DIR, "logs")
 
-    CANDIDATES_FILE = os.path.join(DATA_DIR, "candidates.jsonl")
-    JD_FILE = os.path.join(DATA_DIR, "job_description.md")
-    SUBMISSION_FILE = os.path.join(OUTPUTS_DIR, "submission.csv")
+    CANDIDATES_FILE = os.path.join(BASE_DIR, "candidates.jsonl")
+    JD_FILE = os.path.join(BASE_DIR, "job_description.md")
+    SUBMISSION_FILE = os.path.join(BASE_DIR, "submission.csv")
     CANDIDATE_SCORES_FILE = os.path.join(OUTPUTS_DIR, "candidate_scores.csv")
     DEBUG_DIR = os.path.join(OUTPUTS_DIR, "debug")
     DEBUG_FILE = os.path.join(DEBUG_DIR, "candidate_debug.csv")

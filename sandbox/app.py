@@ -6,15 +6,15 @@ Streamlit sandbox UI for the RedRob candidate ranking pipeline.
 This satisfies spec Section 10.5 (hosted sandbox / demo link). It contains
 NO ranking logic of its own — it's a thin wrapper that:
 
-  1. Auto-detects data/candidates.jsonl if present; otherwise lets you
+  1. Auto-detects candidates.jsonl if present; otherwise lets you
      upload a candidates.jsonl sample
   2. Lets you optionally override the job description (defaults to the
-     bundled data/job_description.md)
+     bundled job_description.md)
   3. Runs the real pipeline exactly as Stage 3 will reproduce it:
-         python main.py --jd <jd_path> --output <output_path>
+         python rank.py --candidates <path> --jd <jd_path> --out <output_path>
      All outputs (submission.csv, candidate_scores.csv, debug CSVs) are
      written to the standard outputs/ directory — identical to running
-     main.py from the terminal.
+     rank.py from the terminal.
   4. Streams pipeline logs in real-time (matching the terminal output)
      with a live elapsed-time timer
   5. Shows the resulting submission.csv and a download button
@@ -40,16 +40,16 @@ import streamlit as st
 
 # This file lives in sandbox/, so the repo root is one level up.
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MAIN_PY = os.path.join(REPO_ROOT, "main.py")
-CANDIDATES_PATH = os.path.join(REPO_ROOT, "data", "candidates.jsonl")
-DEFAULT_JD_PATH = os.path.join(REPO_ROOT, "data", "job_description.md")
-DEFAULT_OUTPUT_PATH = os.path.join(REPO_ROOT, "outputs", "submission.csv")
+RANK_PY = os.path.join(REPO_ROOT, "rank.py")
+CANDIDATES_PATH = os.path.join(REPO_ROOT, "candidates.jsonl")
+DEFAULT_JD_PATH = os.path.join(REPO_ROOT, "job_description.md")
+DEFAULT_OUTPUT_PATH = os.path.join(REPO_ROOT, "submission.csv")
 COMPUTE_BUDGET_SECONDS = 300  # 5-minute limit from the submission spec
 
 st.set_page_config(page_title="RedRob Ranking Sandbox", layout="wide")
 st.title("RedRob Candidate Ranking — Sandbox")
 st.caption(
-    "Runs the real pipeline (`main.py`) end-to-end against candidate data. "
+    "Runs the real pipeline (`rank.py`) end-to-end against candidate data. "
     "This wrapper doesn't reimplement any ranking logic — it just "
     "invokes your existing code, the same way Stage 3 will reproduce it."
 )
@@ -69,21 +69,21 @@ with st.expander("Things to know about this pipeline before you run it", expande
   successful sandbox run as proof of that constraint.
 - **All outputs are written to `outputs/`.** This includes `submission.csv`,
   `candidate_scores.csv`, debug CSVs in `outputs/debug/`, and logs in
-  `outputs/logs/` — exactly the same as running `python main.py` directly.
+  `outputs/logs/` — exactly the same as running `python rank.py` directly.
 """
     )
 
 # ── 1. Candidates ──────────────────────────────────────────────────────────
 st.subheader("1. Candidates")
 
-# Check if data/candidates.jsonl already exists on disk
+# Check if candidates.jsonl already exists on disk
 candidates_file_exists = os.path.exists(CANDIDATES_PATH) and os.path.getsize(CANDIDATES_PATH) > 0
 
 if candidates_file_exists:
     with open(CANDIDATES_PATH, "r", encoding="utf-8") as f:
         existing_line_count = sum(1 for line in f if line.strip())
     st.success(
-        f"✅ Auto-detected `data/candidates.jsonl` ({existing_line_count:,} candidates). "
+        f"✅ Auto-detected `candidates.jsonl` ({existing_line_count:,} candidates). "
         f"The pipeline will use this file automatically."
     )
     use_existing = st.checkbox("Use auto-detected candidates file", value=True)
@@ -94,7 +94,7 @@ if candidates_file_exists:
             "Upload a different candidates.jsonl file (≥100 records recommended)", type=["jsonl"]
         )
 else:
-    st.info("No `data/candidates.jsonl` found — please upload one below.")
+    st.info("No `candidates.jsonl` found — please upload one below.")
     use_existing = False
     candidates_file = st.file_uploader(
         "Upload a candidates.jsonl sample (≥100 records recommended)", type=["jsonl"]
@@ -114,7 +114,7 @@ else:
     jd_text = st.text_area("Paste a job description", height=200)
 
 # ── 3. Run pipeline ───────────────────────────────────────────────────────
-run = st.button("Run pipeline (python main.py)", type="primary", width="stretch")
+run = st.button("Run pipeline (python rank.py)", type="primary", width="stretch")
 
 if run:
     # Validate candidate source
@@ -122,7 +122,7 @@ if run:
         # File already in place — nothing to write
         pass
     elif candidates_file is not None:
-        # Write the uploaded file to the path main.py expects
+        # Write the uploaded file to the path rank.py expects
         os.makedirs(os.path.dirname(CANDIDATES_PATH), exist_ok=True)
         with open(CANDIDATES_PATH, "wb") as f:
             f.write(candidates_file.getvalue())
@@ -157,11 +157,11 @@ if run:
 
     # Use the standard output path so all outputs (submission, debug CSVs,
     # candidate_scores.csv) land in the same outputs/ directory as a
-    # terminal run of main.py.
+    # terminal run of rank.py.
     output_path = DEFAULT_OUTPUT_PATH
 
-    # Build the command — identical to running main.py from the terminal
-    cmd = [sys.executable, MAIN_PY, "--jd", jd_path_to_use, "--output", output_path]
+    # Build the command — identical to running rank.py from the terminal
+    cmd = [sys.executable, RANK_PY, "--candidates", CANDIDATES_PATH, "--jd", jd_path_to_use, "--out", output_path]
     st.info(f"Running: `{' '.join(cmd)}`")
 
     # ── Live timer + log streaming ────────────────────────────────────

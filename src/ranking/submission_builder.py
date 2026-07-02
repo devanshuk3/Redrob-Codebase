@@ -345,7 +345,7 @@ def build_honeypot_debug_csv(removed_honeypots: list, output_dir: str = None) ->
     from src.features.skill_extractor import get_matched_skills  # if needed
 
     if output_dir is None:
-        output_dir = os.path.join("outputs", "debug")
+        output_dir = Config.DEBUG_DIR
     os.makedirs(output_dir, exist_ok=True)
 
     rows = []

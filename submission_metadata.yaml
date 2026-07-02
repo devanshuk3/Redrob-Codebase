@@ -31,7 +31,7 @@ team_members:
 
 github_repo: "https://github.com/devanshuk3/Redrob-Codebase"
 sandbox_link: "https://nexus4.streamlit.app/"
-reproduce_command: "python run.py"
+reproduce_command: "python rank.py --candidates ./candidates.jsonl --out ./submission.csv"
 
 compute:
   platform: "ASUS TUF Gaming F15 FX506HF"                    # Or: "AWS EC2 c5.4xlarge", "Local Linux box", etc.

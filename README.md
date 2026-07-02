@@ -32,15 +32,15 @@ Below is the visual overview of the different processing phases in the pipeline:
 ## Setup & Execution
 
 ### 1. Cold Start (Recommended & Automated)
-For a completely automated setup, navigate to the project root and run:
+For a completely automated setup, place `candidates.jsonl` and `job_description.md` in the project root and run:
 ```bash
-python3 run.py
+python3 rank.py --candidates ./candidates.jsonl --out ./submission.csv
 ```
 This script will automatically:
 1. Create a virtual environment (`venv`) if it doesn't already exist.
 2. Upgrade `pip`.
 3. Install all packages or dependencies.
-4. Run the Streamlit sandbox dashboard.
+4. Run the full candidate ranking pipeline.
 
 ---
 
@@ -60,17 +60,17 @@ pip install -r requirements.txt
 ---
 
 ### 3. Running the Pipeline via CLI
-Ensure input files are placed in `data/candidates.jsonl` and `data/job_description.md`, then run:
+Place `candidates.jsonl` and `job_description.md` in your working directory, then run:
 
 ```bash
-# Run the pipeline on the full dataset
-python3 main.py
+# Run the pipeline (defaults: ./candidates.jsonl, ./job_description.md, ./submission.csv)
+python3 rank.py --candidates ./candidates.jsonl --out ./submission.csv
 
 # Run on a smaller subset (e.g. 5,000 candidates) for rapid testing
-python3 main.py --limit 5000
+python3 rank.py --candidates ./candidates.jsonl --out ./submission.csv --limit 5000
 
-# Specify custom inputs/outputs
-python3 main.py --jd data/job_description.md --output outputs/submission.csv
+# Specify a custom job description
+python3 rank.py --candidates ./candidates.jsonl --out ./submission.csv --jd ./job_description.md
 ```
 
 ---
@@ -92,7 +92,9 @@ pytest -v
 ---
 
 ##  Output Artifacts
-All generated files will be written to the `outputs/` directory:
-* **`outputs/submission.csv`**: The final Top 100 ranked candidates with IDs and structured reasoning (matching submission schema).
-* **`outputs/candidate_scores.csv`**: Comprehensive breakdown of scores (semantic, structured, quality, lexical, etc.) for all candidates.
-* **`outputs/debug/honeypots_detailed.csv`**: Detailed reasons/issues for profiles flagged and removed by the honeypot detection filters.
+All generated files are written relative to the `--out` path:
+* **`./submission.csv`**: The final Top 100 ranked candidates with IDs and structured reasoning (matching submission schema).
+* **`./candidate_scores.csv`**: Comprehensive breakdown of scores (semantic, structured, quality, lexical, etc.) for all candidates.
+* **`./debug/candidate_debug.csv`**: Detailed debug CSV with full score breakdowns for ranked candidates.
+* **`./debug/honeypots_detailed.csv`**: Detailed reasons/issues for profiles flagged and removed by the honeypot detection filters.
+* **`./logs/pipeline.log`**: Full pipeline execution log.

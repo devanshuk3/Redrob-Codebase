@@ -1,10 +1,9 @@
 candidate-ranking/
 │
 ├── data/                          # gitignored — local data only
-│   ├── candidates.jsonl.gz
+│   ├── candidates_sample.jsonl
 │   ├── candidate_schema.json
-│   ├── redrob_signals_doc
-│   └── job_description.md
+│   └── redrob_signals_doc
 │
 ├── src/
 │   ├── ingestion/                 # Member A 
@@ -58,7 +57,9 @@ candidate-ranking/
 ├── sandbox/                       # Streamlit/HuggingFace app
 │   └── app.py
 │
-├── main.py                        # single entrypoint — runs full pipeline
+├── rank.py                        # single entrypoint — runs full pipeline
+├── candidates.jsonl               # input candidates (place in working dir)
+├── job_description.md             # input job description (place in working dir)
 ├── requirements.txt
 ├── submission_metadata.yaml
 ├── README.md
