@@ -18,6 +18,38 @@ Pipeline flow (MERGED — notebook improvements integrated):
 Usage:
     python main.py
 """
+# Virtualenv bootstrap — create venv, install deps, re-exec if needed
+
+import os
+import sys
+import subprocess
+
+VENV_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "venv")
+
+if os.name == "nt":  # Windows
+    venv_python = os.path.join(VENV_DIR, "Scripts", "python.exe")
+else:  # Linux/macOS
+    venv_python = os.path.join(VENV_DIR, "bin", "python")
+
+# Check if we are already running inside the venv
+if os.path.abspath(sys.executable) != os.path.abspath(venv_python):
+    # Create virtual environment if it doesn't exist
+    if not os.path.exists(VENV_DIR):
+        print("Creating virtual environment...")
+        subprocess.check_call([sys.executable, "-m", "venv", VENV_DIR])
+
+    # Upgrade pip
+    print("Upgrading pip...")
+    subprocess.check_call([venv_python, "-m", "pip", "install", "--upgrade", "pip"])
+
+    # Install dependencies
+    requirements_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "requirements.txt")
+    print("Installing requirements...")
+    subprocess.check_call([venv_python, "-m", "pip", "install", "-r", requirements_file])
+
+    # Re-exec this script under the venv python, forwarding all arguments
+    print("Starting candidate ranking pipeline...")
+    sys.exit(subprocess.call([venv_python, os.path.abspath(__file__)] + sys.argv[1:]))
 
 import os
 import sys
